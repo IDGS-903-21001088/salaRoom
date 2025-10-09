@@ -8,5 +8,20 @@
 <body>
 <h1>Meeting Room Administration</h1>
 <form action="/room" method="post">
+    <table border="1">
+        <tr>
+            <th>TIME</th>
+            <th>Leader/Main user</th>
+            <th>Subject</th>
+            <th>Remarks</th>
+        </tr>
+        {% for room in rooms %}
+        <tr>
+            <td>{{ room.TIME }}</td>
+            <td>{{ room.Leader }}</td>
+            <td>{{ room.Subject }}</td>
+            <td>{{ room.Remarks }}</td>
+        </tr>
+        {% endfor %}
 </body>
 </html>
