@@ -1,27 +1,86 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Room administration</title>
+    <title>Meeting Room Administration</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-<h1>Meeting Room Administration</h1>
-<form action="/room" method="post">
-    <table border="1">
-        <tr>
-            <th>TIME</th>
-            <th>Leader/Main user</th>
-            <th>Subject</th>
-            <th>Remarks</th>
-        </tr>
-        {% for room in rooms %}
-        <tr>
-            <td>{{ room.TIME }}</td>
-            <td>{{ room.Leader }}</td>
-            <td>{{ room.Subject }}</td>
-            <td>{{ room.Remarks }}</td>
-        </tr>
-        {% endfor %}
+    <div class="container">
+        <header>
+            <h1>Meeting Room Administration</h1>
+            <div class="logo">WASION</div>
+        </header>
+
+        <div class="controls">
+            <div class="date-selector">
+                <label for="date">Fecha:</label>
+                <input type="date" id="date" value="{{ selected_date }}" onchange="changeDate()">
+            </div>
+            <a href="{{ url_for('add_meeting') }}" class="btn btn-primary">Agregar Reunión</a>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <p class="subtitle">Add information about your meeting session</p>
+
+        <table class="meeting-table">
+            <thead>
+                <tr>
+                    <th>TIME</th>
+                    <th>Leader/Main user</th>
+                    <th>Subject</th>
+                    <th>Remarks</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% set time_slots = [
+                    '8:00-8:30', '8:30-9:00', '9:00-9:30', '9:30-10:00',
+                    '10:00-10:30', '10:30-11:00', '11:00-11:30', '11:30-12:00',
+                    '12:00-12:30', '12:30-13:00', '13:00-13:30', '13:30-14:00',
+                    '14:00-14:30', '14:30-15:00', '15:00-15:30', '15:30-16:00',
+                    '16:00-16:30', '16:30-17:00', '17:00-17:30', '17:30-18:00'
+                ] %}
+                
+                {% for slot in time_slots %}
+                    {% set meeting = meetings|selectattr('time_slot', 'equalto', slot)|first %}
+                    <tr>
+                        <td class="time-cell">{{ slot }}</td>
+                        {% if meeting %}
+                            <td>{{ meeting.leader }}</td>
+                            <td>{{ meeting.subject }}</td>
+                            <td>{{ meeting.remarks or '' }}</td>
+                            <td class="actions-cell">
+                                <a href="{{ url_for('edit_meeting', id=meeting.id) }}" class="btn btn-edit">Editar</a>
+                                <form method="POST" action="{{ url_for('delete_meeting', id=meeting.id) }}" style="display:inline;" onsubmit="return confirm('¿Eliminar esta reunión?');">
+                                    <button type="submit" class="btn btn-delete">Eliminar</button>
+                                </form>
+                            </td>
+                        {% else %}
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td class="actions-cell"></td>
+                        {% endif %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        function changeDate() {
+            const date = document.getElementById('date').value;
+            window.location.href = '/?date=' + date;
+        }
+    </script>
 </body>
 </html>

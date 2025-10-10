@@ -17,3 +17,4 @@ class DevelopmentConfig(Config):
     SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://root:cclab@localhost:3306/salaRoom'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
         
+ 
