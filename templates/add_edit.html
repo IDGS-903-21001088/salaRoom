@@ -12,6 +12,15 @@
             <h1>{{ action }} Reunión</h1>
         </header>
 
+        <!-- Sistema de alertas -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
         <div class="form-container">
             <form method="POST" novalidate>
                 {{ form.hidden_tag() }}
@@ -38,6 +47,15 @@
                     {% if form.leader.errors %}
                         <span class="error">{{ form.leader.errors[0] }}</span>
                     {% endif %}
+                </div>
+
+                <div class="form-group">
+                    {{ form.leader_email.label }}
+                    {{ form.leader_email(class="form-control", placeholder="correo@ejemplo.com") }}
+                    {% if form.leader_email.errors %}
+                        <span class="error">{{ form.leader_email.errors[0] }}</span>
+                    {% endif %}
+                    <small style="color: #666;">Se enviará un correo de confirmación a esta dirección</small>
                 </div>
 
                 <div class="form-group">

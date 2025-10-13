@@ -13,12 +13,27 @@
             <div class="logo">WASION</div>
         </header>
 
+        <div class="user-info" style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin-bottom: 20px;">
+            <span>Usuario: <strong>{{ current_user.username }}</strong></span>
+            {% if current_user.is_superadmin() %}
+                <span style="color: #dc3545; margin-left: 10px;">(Super Admin)</span>
+            {% else %}
+                <span style="color: #28a745; margin-left: 10px;">(Administrador)</span>
+            {% endif %}
+        </div>
+
         <div class="controls">
             <div class="date-selector">
                 <label for="date">Fecha:</label>
                 <input type="date" id="date" value="{{ selected_date }}" onchange="changeDate()">
             </div>
-            <a href="{{ url_for('add_meeting') }}" class="btn btn-primary">Agregar Reunión</a>
+            <div>
+                <a href="{{ url_for('add_meeting') }}" class="btn btn-primary">Agregar Reunión</a>
+                {% if current_user.is_superadmin() %}
+                    <a href="{{ url_for('users') }}" class="btn btn-secondary">Gestionar Usuarios</a>
+                {% endif %}
+                <a href="{{ url_for('logout') }}" class="btn btn-danger">Cerrar Sesión</a>
+            </div>
         </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -36,6 +51,7 @@
                 <tr>
                     <th>TIME</th>
                     <th>Leader/Main user</th>
+                    <th>Email</th>
                     <th>Subject</th>
                     <th>Remarks</th>
                     <th>Actions</th>
@@ -56,15 +72,21 @@
                         <td class="time-cell">{{ slot }}</td>
                         {% if meeting %}
                             <td>{{ meeting.leader }}</td>
+                            <td>{{ meeting.leader_email }}</td>
                             <td>{{ meeting.subject }}</td>
                             <td>{{ meeting.remarks or '' }}</td>
-                            <td class="actions-cell">
-                                <a href="{{ url_for('edit_meeting', id=meeting.id) }}" class="btn btn-edit">Editar</a>
-                                <form method="POST" action="{{ url_for('delete_meeting', id=meeting.id) }}" style="display:inline;" onsubmit="return confirm('¿Eliminar esta reunión?');">
-                                    <button type="submit" class="btn btn-delete">Eliminar</button>
-                                </form>
-                            </td>
+                           <td class="actions-cell">
+    {% if current_user.is_superadmin() %}
+        <a href="{{ url_for('edit_meeting', id=meeting.id) }}" class="btn btn-edit">Editar</a>
+        <form method="POST" action="{{ url_for('delete_meeting', id=meeting.id) }}" style="display:inline;" onsubmit="return confirm('¿Eliminar esta reunión?');">
+            <button type="submit" class="btn btn-delete">Eliminar</button>
+        </form>
+    {% else %}
+        <span style="color: #999;">Sin permisos</span>
+    {% endif %}
+</td>
                         {% else %}
+                            <td></td>
                             <td></td>
                             <td></td>
                             <td></td>
