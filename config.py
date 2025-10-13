@@ -13,18 +13,7 @@ class Config(object):
     ENV = 'production'
     PROPAGATE_EXCEPTIONS = False
     
-    
-    
-    # Configuración de correo electrónico
-MAIL_SERVER = 'smtp.gmail.com'
-MAIL_PORT = 587
-MAIL_USE_TLS = True
-MAIL_USERNAME = 'juangaytangg332@gmail.com'  # Tu correo real
-MAIL_PASSWORD = 'xxxx xxxx xxxx xxxx'  # Contraseña de aplicación de 16 dígitos
-MAIL_DEFAULT_SENDER = 'juangaytangg332@gmail.com'
-    # Configuración de la aplicación
-APP_NAME = 'WASION Meeting Room System'
-    
+  
 class DevelopmentConfig(Config):
     DEBUG = True
     SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://root:cclab@localhost:3306/salaWasion'

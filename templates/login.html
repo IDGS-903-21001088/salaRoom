@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - WASION Meeting Room System</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/wasion.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <style>
     .login-container {
@@ -148,8 +149,8 @@
                 <button type="submit" class="btn-login">Iniciar Sesión</button>
             </form>
 
-            <div class="forgot-password">
-                <a href="{{ url_for('forgot_password') }}">¿Olvidaste tu contraseña?</a>
+            <div class="olvide-contraseña">
+                <a href="{{ url_for('olvide_contrasena') }}">¿Olvidaste tu contraseña?</a>
             </div>
         </div>
     </div>

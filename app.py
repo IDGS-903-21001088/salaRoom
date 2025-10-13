@@ -7,6 +7,8 @@ from forms import MeetingRoomForm, LoginForm, ForgotPasswordForm, ResetPasswordF
 from datetime import datetime, timedelta
 from functools import wraps
 import secrets
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy import or_
 
 app = Flask(__name__)
 app.config.from_object(DevelopmentConfig)
@@ -17,7 +19,7 @@ mail = Mail(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 login_manager.login_message = 'Por favor inicia sesión para acceder a esta página.'
-login_manager.session_protection = 'strong' 
+login_manager.session_protection = 'strong'
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -43,15 +45,23 @@ def send_email(subject, recipient, body):
         print(f"Error al enviar correo: {e}")
         return False
 
-# Inicialización
+# Inicialización: crear tablas y usuario por defecto (si no existe)
 with app.app_context():
     db.create_all()
-    if not User.query.filter_by(username='poweradmin').first():
-        admin = User(username='poweradmin', email='juangaytangg332@gmail.com', role='superadmin')
+    # Comprueba existencia por username o email antes de crear
+    existing = User.query.filter(
+        or_(User.username == 'superadmin', User.email == 'juangaytangg332@gmail.com')
+    ).first()
+    if not existing:
+        admin = User(username='superadmin', email='juangaytangg332@gmail.com', role='superadmin')
         admin.set_password('admin123')
         db.session.add(admin)
-        db.session.commit()
-        print("Super Admin creado: usuario='poweradmin', contraseña='admin123'")
+        try:
+            db.session.commit()
+            print("Super Admin creado: usuario='superadmin', contraseña='admin123'")
+        except IntegrityError:
+            db.session.rollback()
+            print("No se pudo crear el Super Admin: ya existe un registro con ese username o email.")
 
 # ========== AUTENTICACIÓN ==========
 
@@ -77,7 +87,8 @@ def logout():
     flash('Sesión cerrada exitosamente', 'success')
     return redirect(url_for('login'))
 
-@app.route('/forgot-password', methods=['GET', 'POST'])
+# NOTE: endpoint y nombre de ruta normalizados a ASCII
+@app.route('/olvide-contrasena', methods=['GET', 'POST'], endpoint='olvide_contrasena')
 def forgot_password():
     form = ForgotPasswordForm()
     if form.validate_on_submit():
@@ -86,7 +97,12 @@ def forgot_password():
             token = secrets.token_urlsafe(32)
             user.reset_token = token
             user.reset_token_expiry = datetime.utcnow() + timedelta(hours=1)
-            db.session.commit()
+            try:
+                db.session.commit()
+            except IntegrityError:
+                db.session.rollback()
+                flash('Error al generar token de restablecimiento', 'danger')
+                return redirect(url_for('login'))
             
             reset_url = url_for('reset_password', token=token, _external=True)
             body = f"""Hola {user.username},
@@ -94,57 +110,73 @@ def forgot_password():
 Has solicitado restablecer tu contraseña en el Sistema de Salas de Reuniones WASION.
 
 Por favor haz clic en el siguiente enlace para restablecer tu contraseña:
+
 {reset_url}
-
-Este enlace expirará en 1 hora.
-
+ 
 Si no solicitaste este cambio, puedes ignorar este mensaje.
 
-Saludos,
 Sistema WASION"""
             
             send_email('Restablecer Contraseña - WASION', user.email, body)
-            flash('Se ha enviado un correo con instrucciones para restablecer tu contraseña' if user else 
-                  'Si el correo existe, recibirás instrucciones para restablecer tu contraseña', 
-                  'success' if user else 'info')
+            flash('Si el correo existe, recibirás instrucciones para restablecer tu contraseña', 'info')
+        else:
+            # No revelar si el email existe; comportamiento informado arriba
+            flash('Si el correo existe, recibirás instrucciones para restablecer tu contraseña', 'info')
         return redirect(url_for('login'))
-    return render_template('forgot_password.html', form=form)
+    # Asegúrate de que el archivo de plantilla se llame: templates/olvide_contrasena.html
+    return render_template('olvide_contraseña.html', form=form)
 
 @app.route('/reset-password/<token>', methods=['GET', 'POST'])
 def reset_password(token):
     user = User.query.filter_by(reset_token=token).first()
     if not user or user.reset_token_expiry < datetime.utcnow():
         flash('El enlace de restablecimiento es inválido o ha expirado', 'danger')
-        return redirect(url_for('forgot_password'))
+        # actualizar para usar el endpoint nuevo
+        return redirect(url_for('olvide_contraseña'))
     
     form = ResetPasswordForm()
     if form.validate_on_submit():
         user.set_password(form.password.data)
-        user.reset_token = user.reset_token_expiry = None
-        db.session.commit()
+        user.reset_token = None
+        user.reset_token_expiry = None
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash('Error al actualizar la contraseña', 'danger')
+            return redirect(url_for('login'))
         flash('Tu contraseña ha sido actualizada exitosamente', 'success')
         return redirect(url_for('login'))
-    return render_template('reset_password.html', form=form)
+    return render_template('restablecer.html', form=form)
 
-# ========== GESTIÓN DE USUARIOS ==========
+## GESTIÓN DE USUARIOS
 
 @app.route('/users')
 @superadmin_required
 def users():
-    return render_template('users.html', users=User.query.all())
+    return render_template('usuarios.html', users=User.query.all())
 
 @app.route('/users/add', methods=['GET', 'POST'])
 @superadmin_required
 def add_user():
     form = UserForm()
     if form.validate_on_submit():
+        # prevenir duplicados por correo o username
+        if User.query.filter(or_(User.username == form.username.data, User.email == form.email.data)).first():
+            flash('El username o el email ya están en uso', 'danger')
+            return render_template('usuario_form.html', form=form, action='Crear')
         user = User(username=form.username.data, email=form.email.data, role=form.role.data)
         user.set_password(form.password.data)
         db.session.add(user)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash('Error al crear usuario (posible duplicado)', 'danger')
+            return render_template('usuario_form.html', form=form, action='Crear')
         flash('Usuario creado exitosamente', 'success')
         return redirect(url_for('users'))
-    return render_template('user_form.html', form=form, action='Crear')
+    return render_template('usuario_form.html', form=form, action='Crear')
 
 @app.route('/users/delete/<int:id>', methods=['POST'])
 @superadmin_required
@@ -158,7 +190,7 @@ def delete_user(id):
     flash('Usuario eliminado exitosamente', 'success')
     return redirect(url_for('users'))
 
-# ========== GESTIÓN DE REUNIONES ==========
+## GESTIÓN DE REUNIONES 
 
 @app.route('/')
 @login_required
@@ -175,7 +207,7 @@ def add_meeting():
     if form.validate_on_submit():
         if MeetingRoom.query.filter_by(date=form.date.data, time_slot=form.time_slot.data).first():
             flash('Ya existe una reunión reservada en ese horario', 'danger')
-            return render_template('add_edit.html', form=form, action='Agregar')
+            return render_template('formulario.html', form=form, action='Agregar')
         
         meeting = MeetingRoom(
             time_slot=form.time_slot.data, leader=form.leader.data,
@@ -205,7 +237,7 @@ Sistema de Salas WASION"""
         return redirect(url_for('index', date=form.date.data.strftime('%Y-%m-%d')))
     
     form.date.data = datetime.now().date()
-    return render_template('add_edit.html', form=form, action='Agregar')
+    return render_template('formulario.html', form=form, action='Agregar')
 
 @app.route('/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
@@ -221,7 +253,7 @@ def edit_meeting(id):
             MeetingRoom.id != id
         ).first():
             flash('Ya existe una reunión reservada en ese horario', 'danger')
-            return render_template('add_edit.html', form=form, action='Editar', meeting=meeting)
+            return render_template('formulario.html', form=form, action='Editar', meeting=meeting)
         
         meeting.time_slot = form.time_slot.data
         meeting.leader = form.leader.data
@@ -233,7 +265,7 @@ def edit_meeting(id):
         flash('Reunión actualizada exitosamente', 'success')
         return redirect(url_for('index', date=meeting.date.strftime('%Y-%m-%d')))
     
-    return render_template('add_edit.html', form=form, action='Editar', meeting=meeting)
+    return render_template('formulario.html', form=form, action='Editar', meeting=meeting)
 
 @app.route('/delete/<int:id>', methods=['POST'])
 @login_required
