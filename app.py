@@ -2,8 +2,8 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_mail import Mail, Message
 from config import DevelopmentConfig
-from models import db, MeetingRoom, User
-from forms import MeetingRoomForm, LoginForm, ForgotPasswordForm, ResetPasswordForm, UserForm
+from models import db, MeetingRoom, User, Room
+from forms import MeetingRoomForm, LoginForm, ForgotPasswordForm, ResetPasswordForm, UserForm, RoomForm
 from datetime import datetime, timedelta
 from functools import wraps
 import secrets
@@ -25,12 +25,23 @@ login_manager.session_protection = 'strong'
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# Decorador para superadmin
+# Decoradores de permisos
 def superadmin_required(f):
     @wraps(f)
     @login_required
     def decorated(*args, **kwargs):
         if not current_user.is_superadmin():
+            flash('No tienes permisos para acceder a esta página', 'danger')
+            return redirect(url_for('index'))
+        return f(*args, **kwargs)
+    return decorated
+
+def admin_required(f):
+    """Permite acceso a admin y superadmin"""
+    @wraps(f)
+    @login_required
+    def decorated(*args, **kwargs):
+        if not (current_user.is_admin() or current_user.is_superadmin()):
             flash('No tienes permisos para acceder a esta página', 'danger')
             return redirect(url_for('index'))
         return f(*args, **kwargs)
@@ -45,10 +56,9 @@ def send_email(subject, recipient, body):
         print(f"Error al enviar correo: {e}")
         return False
 
-# Inicialización: crear tablas y usuario por defecto (si no existe)
+# Inicialización
 with app.app_context():
     db.create_all()
-    # Comprueba existencia por username o email antes de crear
     existing = User.query.filter(
         or_(User.username == 'superadmin', User.email == 'juangaytangg332@gmail.com')
     ).first()
@@ -61,7 +71,6 @@ with app.app_context():
             print("Super Admin creado: usuario='superadmin', contraseña='admin123'")
         except IntegrityError:
             db.session.rollback()
-            print("No se pudo crear el Super Admin: ya existe un registro con ese username o email.")
 
 # ========== AUTENTICACIÓN ==========
 
@@ -87,7 +96,6 @@ def logout():
     flash('Sesión cerrada exitosamente', 'success')
     return redirect(url_for('login'))
 
-# NOTE: endpoint y nombre de ruta normalizados a ASCII
 @app.route('/olvide-contrasena', methods=['GET', 'POST'], endpoint='olvide_contrasena')
 def forgot_password():
     form = ForgotPasswordForm()
@@ -118,12 +126,8 @@ Si no solicitaste este cambio, puedes ignorar este mensaje.
 Sistema WASION"""
             
             send_email('Restablecer Contraseña - WASION', user.email, body)
-            flash('Si el correo existe, recibirás instrucciones para restablecer tu contraseña', 'info')
-        else:
-            # No revelar si el email existe; comportamiento informado arriba
-            flash('Si el correo existe, recibirás instrucciones para restablecer tu contraseña', 'info')
+        flash('Si el correo existe, recibirás instrucciones para restablecer tu contraseña', 'info')
         return redirect(url_for('login'))
-    # Asegúrate de que el archivo de plantilla se llame: templates/olvide_contrasena.html
     return render_template('olvide_contraseña.html', form=form)
 
 @app.route('/reset-password/<token>', methods=['GET', 'POST'])
@@ -131,8 +135,7 @@ def reset_password(token):
     user = User.query.filter_by(reset_token=token).first()
     if not user or user.reset_token_expiry < datetime.utcnow():
         flash('El enlace de restablecimiento es inválido o ha expirado', 'danger')
-        # actualizar para usar el endpoint nuevo
-        return redirect(url_for('olvide_contraseña'))
+        return redirect(url_for('olvide_contrasena'))
     
     form = ResetPasswordForm()
     if form.validate_on_submit():
@@ -149,7 +152,39 @@ def reset_password(token):
         return redirect(url_for('login'))
     return render_template('restablecer.html', form=form)
 
-## GESTIÓN DE USUARIOS
+@app.route('/register', methods=['GET', 'POST'])
+def usuario_form():
+    """Registro público - crea usuarios con rol 'user'"""
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    
+    form = UserForm()
+    
+    if form.validate_on_submit():
+        if User.query.filter(or_(User.username == form.username.data, User.email == form.email.data)).first():
+            flash('El username o el email ya están en uso', 'danger')
+            return render_template('usuario_form.html', form=form, action='Registrarse')
+        
+        # Siempre crea como 'user'
+        user = User(
+            username=form.username.data, 
+            email=form.email.data, 
+            role='user'
+        )
+        user.set_password(form.password.data)
+        db.session.add(user)
+        
+        try:
+            db.session.commit()
+            flash('¡Registro exitoso! Ahora puedes iniciar sesión.', 'success')
+            return redirect(url_for('login'))
+        except IntegrityError:
+            db.session.rollback()
+            flash('Error al registrar usuario (posible duplicado)', 'danger')
+    
+    return render_template('usuario_form.html', form=form, action='Registrarse')
+
+# ========== GESTIÓN DE USUARIOS (Solo Superadmin) ==========
 
 @app.route('/users')
 @superadmin_required
@@ -161,7 +196,6 @@ def users():
 def add_user():
     form = UserForm()
     if form.validate_on_submit():
-        # prevenir duplicados por correo o username
         if User.query.filter(or_(User.username == form.username.data, User.email == form.email.data)).first():
             flash('El username o el email ya están en uso', 'danger')
             return render_template('usuario_form.html', form=form, action='Crear')
@@ -170,12 +204,11 @@ def add_user():
         db.session.add(user)
         try:
             db.session.commit()
+            flash('Usuario creado exitosamente', 'success')
+            return redirect(url_for('users'))
         except IntegrityError:
             db.session.rollback()
-            flash('Error al crear usuario (posible duplicado)', 'danger')
-            return render_template('usuario_form.html', form=form, action='Crear')
-        flash('Usuario creado exitosamente', 'success')
-        return redirect(url_for('users'))
+            flash('Error al crear usuario', 'danger')
     return render_template('usuario_form.html', form=form, action='Crear')
 
 @app.route('/users/delete/<int:id>', methods=['POST'])
@@ -190,7 +223,70 @@ def delete_user(id):
     flash('Usuario eliminado exitosamente', 'success')
     return redirect(url_for('users'))
 
-## GESTIÓN DE REUNIONES 
+# ========== GESTIÓN DE SALAS (Admin y Superadmin) ==========
+
+@app.route('/rooms')
+@admin_required
+def rooms():
+    all_rooms = Room.query.order_by(Room.name).all()
+    return render_template('salas.html', rooms=all_rooms)
+
+@app.route('/rooms/add', methods=['GET', 'POST'])
+@admin_required
+def add_room():
+    form = RoomForm()
+    if form.validate_on_submit():
+        if Room.query.filter_by(name=form.name.data).first():
+            flash('Ya existe una sala con ese nombre', 'danger')
+            return render_template('sala_form.html', form=form, action='Crear')
+        
+        room = Room(
+            name=form.name.data,
+            description=form.description.data,
+            capacity=form.capacity.data,
+            created_by=current_user.id
+        )
+        db.session.add(room)
+        db.session.commit()
+        flash('Sala creada exitosamente', 'success')
+        return redirect(url_for('rooms'))
+    return render_template('sala_form.html', form=form, action='Crear')
+
+@app.route('/rooms/edit/<int:id>', methods=['GET', 'POST'])
+@admin_required
+def edit_room(id):
+    room = Room.query.get_or_404(id)
+    form = RoomForm(obj=room)
+    
+    if form.validate_on_submit():
+        existing = Room.query.filter(Room.name == form.name.data, Room.id != id).first()
+        if existing:
+            flash('Ya existe una sala con ese nombre', 'danger')
+            return render_template('sala_form.html', form=form, action='Editar', room=room)
+        
+        room.name = form.name.data
+        room.description = form.description.data
+        room.capacity = form.capacity.data
+        db.session.commit()
+        flash('Sala actualizada exitosamente', 'success')
+        return redirect(url_for('rooms'))
+    
+    return render_template('sala_form.html', form=form, action='Editar', room=room)
+
+@app.route('/rooms/delete/<int:id>', methods=['POST'])
+@admin_required
+def delete_room(id):
+    room = Room.query.get_or_404(id)
+    # Verificar si hay reuniones asociadas
+    if room.meetings:
+        flash('No se puede eliminar la sala porque tiene reuniones asociadas', 'danger')
+    else:
+        db.session.delete(room)
+        db.session.commit()
+        flash('Sala eliminada exitosamente', 'success')
+    return redirect(url_for('rooms'))
+
+# ========== GESTIÓN DE REUNIONES (Todos los usuarios autenticados) ==========
 
 @app.route('/')
 @login_required
@@ -204,24 +300,43 @@ def index():
 @login_required
 def add_meeting():
     form = MeetingRoomForm()
+    # Cargar opciones de salas
+    form.room_id.choices = [(r.id, f"{r.name} (Cap: {r.capacity})") for r in Room.query.order_by(Room.name).all()]
+    
+    if not form.room_id.choices:
+        flash('No hay salas disponibles. Un administrador debe crear salas primero.', 'warning')
+        return redirect(url_for('index'))
+    
     if form.validate_on_submit():
-        if MeetingRoom.query.filter_by(date=form.date.data, time_slot=form.time_slot.data).first():
-            flash('Ya existe una reunión reservada en ese horario', 'danger')
+        # Verificar conflicto de horario
+        if MeetingRoom.query.filter_by(
+            date=form.date.data, 
+            time_slot=form.time_slot.data,
+            room_id=form.room_id.data
+        ).first():
+            flash('Ya existe una reunión reservada en ese horario y sala', 'danger')
             return render_template('formulario.html', form=form, action='Agregar')
         
         meeting = MeetingRoom(
-            time_slot=form.time_slot.data, leader=form.leader.data,
-            leader_email=form.leader_email.data, subject=form.subject.data,
-            remarks=form.remarks.data, date=form.date.data, created_by=current_user.id
+            room_id=form.room_id.data,
+            time_slot=form.time_slot.data, 
+            leader=form.leader.data,
+            leader_email=form.leader_email.data, 
+            subject=form.subject.data,
+            remarks=form.remarks.data, 
+            date=form.date.data, 
+            created_by=current_user.id
         )
         db.session.add(meeting)
         db.session.commit()
         
+        room = Room.query.get(form.room_id.data)
         body = f"""Hola {meeting.leader},
 
 Tu reservación de sala de reuniones ha sido confirmada exitosamente.
 
 Detalles de la Reunión:
+- Sala: {room.name}
 - Fecha: {meeting.date.strftime('%d/%m/%Y')}
 - Horario: {meeting.time_slot}
 - Asunto: {meeting.subject}
@@ -245,16 +360,19 @@ Sistema de Salas WASION"""
 def edit_meeting(id):
     meeting = MeetingRoom.query.get_or_404(id)
     form = MeetingRoomForm(obj=meeting)
+    form.room_id.choices = [(r.id, f"{r.name} (Cap: {r.capacity})") for r in Room.query.order_by(Room.name).all()]
     
     if form.validate_on_submit():
         if MeetingRoom.query.filter(
             MeetingRoom.date == form.date.data,
             MeetingRoom.time_slot == form.time_slot.data,
+            MeetingRoom.room_id == form.room_id.data,
             MeetingRoom.id != id
         ).first():
-            flash('Ya existe una reunión reservada en ese horario', 'danger')
+            flash('Ya existe una reunión reservada en ese horario y sala', 'danger')
             return render_template('formulario.html', form=form, action='Editar', meeting=meeting)
         
+        meeting.room_id = form.room_id.data
         meeting.time_slot = form.time_slot.data
         meeting.leader = form.leader.data
         meeting.leader_email = form.leader_email.data
@@ -278,5 +396,7 @@ def delete_meeting(id):
     flash('Reunión eliminada exitosamente', 'success')
     return redirect(url_for('index', date=date))
 
+
 if __name__ == '__main__':
     app.run(debug=True)
+    

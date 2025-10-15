@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, DateField, TextAreaField, SelectField, PasswordField, EmailField
-from wtforms.validators import DataRequired, Length, Email, EqualTo, ValidationError
+from wtforms import StringField, DateField, TextAreaField, SelectField, PasswordField, EmailField, IntegerField
+from wtforms.validators import DataRequired, Length, Email, EqualTo, ValidationError, NumberRange
 from models import User
 
 class LoginForm(FlaskForm):
@@ -21,7 +21,7 @@ class UserForm(FlaskForm):
     email = EmailField('Correo Electrónico', validators=[DataRequired(), Email()])
     password = PasswordField('Contraseña', validators=[Length(min=6)])
     role = SelectField('Rol', 
-        choices=[('admin', 'Administrador'), ('superadmin', 'Super Administrador')],
+        choices=[('user', 'Usuario'), ('admin', 'Administrador'), ('superadmin', 'Super Administrador')],
         validators=[DataRequired()])
     
     def validate_username(self, username):
@@ -40,7 +40,18 @@ class UserForm(FlaskForm):
         if user:
             raise ValidationError('Este correo electrónico ya está registrado.')
 
+class RoomForm(FlaskForm):
+    """Formulario para crear/editar salas físicas"""
+    name = StringField('Nombre de la Sala', 
+        validators=[DataRequired(), Length(max=100)])
+    description = TextAreaField('Descripción', 
+        validators=[Length(max=300)])
+    capacity = IntegerField('Capacidad (personas)', 
+        validators=[DataRequired(), NumberRange(min=1, max=1000, message='La capacidad debe ser entre 1 y 1000')])
+
 class MeetingRoomForm(FlaskForm):
+    """Formulario para reservar salas"""
+    room_id = SelectField('Sala', coerce=int, validators=[DataRequired()])
     time_slot = SelectField('Horario', 
         choices=[
             ('8:00-8:30', '8:00-8:30'),

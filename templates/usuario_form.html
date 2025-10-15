@@ -41,6 +41,8 @@
                     {% endif %}
                 </div>
 
+                {# Mostrar el campo de rol si es el superadmin, sino ocultarlo con valor 'user' #}
+                {% if current_user.is_authenticated and current_user.is_superadmin() %}
                 <div class="form-group">
                     {{ form.role.label }}
                     {{ form.role(class="form-control") }}
@@ -48,10 +50,18 @@
                         <span class="error">{{ form.role.errors[0] }}</span>
                     {% endif %}
                 </div>
+                {% else %}
+                {# Campo oculto con valor 'user' para registro público #}
+                <input type="hidden" name="role" value="user">
+                {% endif %}
 
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary">{{ action }}</button>
-                    <a href="{{ url_for('users') }}" class="btn btn-secondary">Cancelar</a>
+                    {% if current_user.is_authenticated %}
+                        <a href="{{ url_for('users') }}" class="btn btn-secondary">Cancelar</a>
+                    {% else %}
+                        <a href="{{ url_for('login') }}" class="btn btn-secondary">Volver al Login</a>
+                    {% endif %}
                 </div>
             </form>
         </div>
