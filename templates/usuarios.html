@@ -15,7 +15,7 @@
         </header>
 
         <div class="controls">
-            <a href="{{ url_for('index') }}" class="btn btn-secondary">← Volver a Salas</a>
+            <a href="{{ url_for('index') }}" class="btn btn-secondary">←  Volver a Salas</a>
             <a href="{{ url_for('add_user') }}" class="btn btn-primary">Agregar Usuario</a>
             <a href="{{ url_for('logout') }}" class="btn btn-danger">Cerrar Sesión</a>
         </div>
@@ -45,13 +45,15 @@
                     <td>{{ user.id }}</td>
                     <td>{{ user.username }}</td>
                     <td>{{ user.email }}</td>
-                    <td>
-                        {% if user.role == 'superadmin' %}
-                            <span style="color: #dc3545; font-weight: bold;">Super Admin</span>
-                        {% else %}
-                            <span style="color: #28a745;">Administrador</span>
-                        {% endif %}
-                    </td>
+                   <td>
+    {% if user.role == 'superadmin' %}
+        <span style="color: #dc3545; font-weight: bold;">Super Admin</span>
+    {% elif user.role == 'admin' %}
+        <span style="color: #ffc107; font-weight: bold;">Administrador</span>
+    {% else %}
+        <span style="color: #28a745;">Usuario</span>
+    {% endif %}
+</td>
                     <td>{{ user.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
                     <td class="actions-cell">
                         {% if user.id != current_user.id %}

@@ -9,44 +9,42 @@
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>{{ action }} Sala</h1>
-        </header>
+        <header><h1>{{ action }} Sala</h1></header>
 
-        <div class="form-container">
-            <form method="POST" novalidate>
-                {{ form.hidden_tag() }}
-                
-                <div class="form-group">
-                    {{ form.name.label }}
-                    {{ form.name(class="form-control", placeholder="Ej: Sala de Juntas A") }}
-                    {% if form.name.errors %}
-                        <span class="error">{{ form.name.errors[0] }}</span>
-                    {% endif %}
-                </div>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
 
-                <div class="form-group">
-                    {{ form.description.label }}
-                    {{ form.description(class="form-control", rows="3", placeholder="Descripción de la sala (opcional)") }}
-                    {% if form.description.errors %}
-                        <span class="error">{{ form.description.errors[0] }}</span>
-                    {% endif %}
-                </div>
+        <form method="POST">
+            {{ form.hidden_tag() }}
 
-                <div class="form-group">
-                    {{ form.capacity.label }}
-                    {{ form.capacity(class="form-control", placeholder="Ej: 10") }}
-                    {% if form.capacity.errors %}
-                        <span class="error">{{ form.capacity.errors[0] }}</span>
-                    {% endif %}
-                </div>
+            <div class="form-group">
+                <label for="name">Nombre</label>
+                {{ form.name(class="form-control") }}
+            </div>
 
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">{{ action }}</button>
-                    <a href="{{ url_for('rooms') }}" class="btn btn-secondary">Cancelar</a>
-                </div>
-            </form>
-        </div>
+            <div class="form-group">
+                <label for="description">Descripción</label>
+                {{ form.description(class="form-control") }}
+            </div>
+
+            <div class="form-group">
+                <label for="capacity">Capacidad</label>
+                {{ form.capacity(class="form-control") }}
+            </div>
+
+            <div class="form-group">
+                <label for="plant_id">Planta</label>
+                {{ form.plant_id(class="form-control") }}
+            </div>
+
+            <button type="submit" class="btn btn-primary">{{ action }}</button>
+            <a href="{{ url_for('rooms', plant=form.plant_id.data if form.plant_id.data else None) }}" class="btn btn-secondary">Cancelar</a>
+        </form>
     </div>
 </body>
 </html>

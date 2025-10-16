@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plantas - WASION</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/wasion.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Plantas / Sucursales</h1>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="form-actions">
+            <a href="{{ url_for('index') }}" class="btn btn-secondary">← Volver</a>
+            <a href="{{ url_for('add_plant') }}" class="btn btn-primary">Agregar Planta</a>
+        </div>
+
+        <table class="meeting-table">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Descripción</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in plants %}
+                    <tr>
+                        <td>{{ p.name }}</td>
+                        <td>{{ p.description or '' }}</td>
+                        <td class="actions-cell">
+                            <form method="POST" action="{{ url_for('delete_plant', id=p.id) }}" style="display:inline;" onsubmit="return confirm('¿Eliminar planta?');">
+                                <button type="submit" class="btn btn-delete">Eliminar</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

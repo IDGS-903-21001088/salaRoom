@@ -3,17 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ action }} Reunión</title>
+    <title>{{ action }} Reunión - WASION</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/wasion.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>{{ action }} Reunión</h1>
-        </header>
+        <header><h1>{{ action }} Reunión</h1></header>
 
-        <!-- Sistema de alertas -->
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
@@ -22,74 +19,66 @@
             {% endif %}
         {% endwith %}
 
-        <div class="form-container">
-            <form method="POST" novalidate>
-                {{ form.hidden_tag() }}
-                
-                <div class="form-group">
-                    {{ form.date.label }}
-                    {{ form.date(class="form-control") }}
-                    {% if form.date.errors %}
-                        <span class="error">{{ form.date.errors[0] }}</span>
-                    {% endif %}
-                </div>
+        <form method="POST">
+            {{ form.hidden_tag() }}
 
-                <div class="form-group">
-                {{ form.room_id.label }}
-                {{ form.room_id(class="form-control") }}
-                {% if form.room_id.errors %}
-                    <span class="error">{{ form.room_id.errors[0] }}</span>
-                {% endif %}
-                </div>
+            <div class="form-group">
+                <label for="plant_id">Planta</label>
+                {{ form.plant_id(class="form-control", id="plant_id", onchange="onPlantChange()") }}
+            </div>
 
+            <div class="form-group">
+                <label for="room_id">Sala</label>
+                {{ form.room_id(class="form-control", id="room_id") }}
+            </div>
 
-                <div class="form-group">
-                    {{ form.time_slot.label }}
-                    {{ form.time_slot(class="form-control") }}
-                    {% if form.time_slot.errors %}
-                        <span class="error">{{ form.time_slot.errors[0] }}</span>
-                    {% endif %}
-                </div>
+            <div class="form-group">
+                <label for="date">Fecha</label>
+                {{ form.date(class="form-control") }}
+            </div>
 
-                <div class="form-group">
-                    {{ form.leader.label }}
-                    {{ form.leader(class="form-control", placeholder="Nombre del responsable") }}
-                    {% if form.leader.errors %}
-                        <span class="error">{{ form.leader.errors[0] }}</span>
-                    {% endif %}
-                </div>
+            <div class="form-group">
+                <label for="time_slot">Horario</label>
+                {{ form.time_slot(class="form-control") }}
+            </div>
 
-                <div class="form-group">
-                    {{ form.leader_email.label }}
-                    {{ form.leader_email(class="form-control", placeholder="correo@ejemplo.com") }}
-                    {% if form.leader_email.errors %}
-                        <span class="error">{{ form.leader_email.errors[0] }}</span>
-                    {% endif %}
-                    <small style="color: #666;">Se enviará un correo de confirmación a esta dirección</small>
-                </div>
+            <div class="form-group">
+                <label for="leader">Líder</label>
+                {{ form.leader(class="form-control") }}
+            </div>
 
-                <div class="form-group">
-                    {{ form.subject.label }}
-                    {{ form.subject(class="form-control", placeholder="Tema de la reunión") }}
-                    {% if form.subject.errors %}
-                        <span class="error">{{ form.subject.errors[0] }}</span>
-                    {% endif %}
-                </div>
+            <div class="form-group">
+                <label for="leader_email">Email del líder</label>
+                {{ form.leader_email(class="form-control") }}
+            </div>
 
-                <div class="form-group">
-                    {{ form.remarks.label }}
-                    {{ form.remarks(class="form-control", rows="3", placeholder="Observaciones adicionales") }}
-                    {% if form.remarks.errors %}
-                        <span class="error">{{ form.remarks.errors[0] }}</span>
-                    {% endif %}
-                </div>
+            <div class="form-group">
+                <label for="subject">Asunto</label>
+                {{ form.subject(class="form-control") }}
+            </div>
 
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">{{ action }}</button>
-                    <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancelar</a>
-                </div>
-            </form>
-        </div>
+            <div class="form-group">
+                <label for="remarks">Observaciones</label>
+                {{ form.remarks(class="form-control") }}
+            </div>
+
+            <button type="submit" class="btn btn-primary">{{ action }}</button>
+            <a href="{{ url_for('index', date=form.date.data.strftime('%Y-%m-%d') if form.date.data else None, plant=form.plant_id.data if form.plant_id.data else None) }}" class="btn btn-secondary">Cancelar</a>
+        </form>
     </div>
+
+    <script>
+        function onPlantChange() {
+            // recarga la página para que el backend reasigne form.room_id.choices
+            const plant = document.getElementById('plant_id').value;
+            const dateInput = document.querySelector('input[name="date"]');
+            const date = dateInput ? dateInput.value : '';
+            const qs = new URLSearchParams();
+            if (plant) qs.set('plant', plant);
+            if (date) qs.set('date', date);
+            // cuando estamos editando, puede ser útil agregar id, pero para agregar basta con esto
+            window.location.href = '/add?' + qs.toString();
+        }
+    </script>
 </body>
 </html>

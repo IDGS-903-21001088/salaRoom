@@ -3,44 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Meeting Room Administration</title>
+    <title>WASION - Reservas de Salas</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/wasion.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
+    
     <div class="container">
         <header>
-            <h1>Meeting Room Administration</h1>
+            <h1>WASION — Reservas de Salas</h1>
             <div class="logo">WASION</div>
         </header>
 
-        <div class="user-info" style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin-bottom: 20px;">
+        <div class="user-info" style="background:#f8f9fa;padding:10px;border-radius:5px;margin-bottom:20px;">
             <span>Usuario: <strong>{{ current_user.username }}</strong></span>
             {% if current_user.is_superadmin() %}
-                <span style="color: #dc3545; margin-left: 10px;">(Super Admin)</span>
+                <span style="color:#dc3545;margin-left:10px;">(Super Admin)</span>
             {% elif current_user.is_admin() %}
-                <span style="color: #007bff; margin-left: 10px;">(Administrador)</span>
+                <span style="color:#007bff;margin-left:10px;">(Administrador)</span>
             {% else %}
-                <span style="color: #28a745; margin-left: 10px;">(Usuario)</span>
+                <span style="color:#28a745;margin-left:10px;">(Usuario)</span>
             {% endif %}
         </div>
 
-        <div class="controls">
+        <div class="controls" style="display:flex;gap:12px;align-items:center;margin-bottom:16px;">
             <div class="date-selector">
                 <label for="date">Fecha:</label>
                 <input type="date" id="date" value="{{ selected_date }}" onchange="changeDate()">
             </div>
-            <div>
-                <a href="{{ url_for('add_meeting') }}" class="btn btn-primary">Agregar Reunión</a>
-                
+
+            <div class="plant-selector">
+                <label for="plant">Planta:</label>
+                <select id="plant" onchange="changePlant()">
+                    {% for p in plants %}
+                        <option value="{{ p.id }}" {% if selected_plant and p.id == selected_plant %}selected{% endif %}>
+                            {{ p.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="margin-left:auto;">
+                <a href="{{ url_for('add_meeting', plant=selected_plant) }}" class="btn btn-primary">Agregar Reunión</a>
                 {% if current_user.is_admin() or current_user.is_superadmin() %}
-                    <a href="{{ url_for('rooms') }}" class="btn btn-secondary">Gestionar Salas</a>
+                    <a href="{{ url_for('rooms', plant=selected_plant) }}" class="btn btn-secondary">Gestionar Salas</a>
                 {% endif %}
-                
                 {% if current_user.is_superadmin() %}
+                    <a href="{{ url_for('plants') }}" class="btn btn-terciario">Gestionar Plantas</a>
                     <a href="{{ url_for('users') }}" class="btn btn-terciario">Gestionar Usuarios</a>
                 {% endif %}
-                
                 <a href="{{ url_for('logout') }}" class="btn btn-danger">Cerrar Sesión</a>
             </div>
         </div>
@@ -53,18 +64,18 @@
             {% endif %}
         {% endwith %}
 
-        <p class="subtitle">Add information about your meeting session</p>
+        <p class="subtitle">Seleccione el horario para ver la reserva</p>
 
         <table class="meeting-table">
             <thead>
                 <tr>
-                    <th>TIME</th>
-                    <th>Sala</th>
-                    <th>Leader/Main user</th>
+                    <th>HORA</th>
+                    <th>SALA</th>
+                    <th>Líder</th>
                     <th>Email</th>
-                    <th>Subject</th>
-                    <th>Remarks</th>
-                    <th>Actions</th>
+                    <th>Asunto</th>
+                    <th>Observaciones</th>
+                    <th>Acciones</th>
                 </tr>
             </thead>
             <tbody>
@@ -81,7 +92,7 @@
                     <tr>
                         <td class="time-cell">{{ slot }}</td>
                         {% if meeting %}
-                            <td>{{ meeting.room.name if meeting.room else 'N/A' }}</td>
+                            <td>{{ meeting.room.name if meeting.room else 'N/A' }}{% if meeting.room and meeting.room.plant %} — {{ meeting.room.plant.name }}{% endif %}</td>
                             <td>{{ meeting.leader }}</td>
                             <td>{{ meeting.leader_email }}</td>
                             <td>{{ meeting.subject }}</td>
@@ -93,16 +104,11 @@
                                         <button type="submit" class="btn btn-delete">Eliminar</button>
                                     </form>
                                 {% else %}
-                                    <span style="color: #999;">Sin permisos</span>
+                                    <span style="color:#999;">Sin permisos</span>
                                 {% endif %}
                             </td>
                         {% else %}
-                            <td></td>
-                            <td></td>
-                            <td></td>
-                            <td></td>
-                            <td></td>
-                            <td class="actions-cell"></td>
+                            <td colspan="6"></td>
                         {% endif %}
                     </tr>
                 {% endfor %}
@@ -113,7 +119,15 @@
     <script>
         function changeDate() {
             const date = document.getElementById('date').value;
-            window.location.href = '/?date=' + date;
+            const plant = document.getElementById('plant').value;
+            const qs = new URLSearchParams();
+            if (date) qs.set('date', date);
+            if (plant) qs.set('plant', plant);
+            window.location.href = '/?' + qs.toString();
+        }
+
+        function changePlant() {
+            changeDate(); // reusa la misma lógica para preservar la fecha
         }
     </script>
 </body>

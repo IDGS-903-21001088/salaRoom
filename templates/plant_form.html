@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agregar Planta - WASION</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/wasion.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header><h1>Agregar Planta</h1></header>
+
+        <form method="POST">
+            <div class="form-group">
+                <label for="name">Nombre</label>
+                <input name="name" id="name" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+                <label for="description">Descripción</label>
+                <textarea name="description" id="description" class="form-control"></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Crear</button>
+            <a href="{{ url_for('plants') }}" class="btn btn-secondary">Cancelar</a>
+        </form>
+    </div>
+</body>
+</html>
+

@@ -3,22 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestión de Salas - WASION</title>
+    <title>Salas - WASION</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/wasion.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Gestión de Salas</h1>
             <div class="logo">WASION</div>
+            <h1>Gestión de Salas</h1>
+            <div class="subtitle">Administra y filtra las salas por planta</div>
         </header>
 
         <div class="controls">
-            <div></div>
-            <div>
+            <div class="date-selector">
+                <a href="{{ url_for('index') }}" class="btn btn-secondary">←Volver</a>
+                <label for="plant">Filtrar por Planta:</label>
+                <select id="plant" onchange="changePlant()" class="form-control">
+                    <option value="">Todas</option>
+                    {% for p in plants %}
+                        <option value="{{ p.id }}" {% if selected_plant and p.id == selected_plant %}selected{% endif %}>{{ p.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="margin-left:auto;">
                 <a href="{{ url_for('add_room') }}" class="btn btn-primary">Agregar Sala</a>
-                <a href="{{ url_for('index') }}" class="btn btn-secondary">Volver a Reuniones</a>
             </div>
         </div>
 
@@ -34,37 +44,38 @@
             <thead>
                 <tr>
                     <th>Nombre</th>
-                    <th>Descripción</th>
+                    <th>Planta</th>
                     <th>Capacidad</th>
-                    <th>Fecha de Creación</th>
+                    <th>Descripción</th>
                     <th>Acciones</th>
                 </tr>
             </thead>
             <tbody>
-                {% if rooms %}
-                    {% for room in rooms %}
+                {% for r in rooms %}
                     <tr>
-                        <td><strong>{{ room.name }}</strong></td>
-                        <td>{{ room.description or 'Sin descripción' }}</td>
-                        <td>{{ room.capacity }} personas</td>
-                        <td>{{ room.created_at.strftime('%d/%m/%Y') }}</td>
+                        <td>{{ r.name }}</td>
+                        <td>{{ r.plant.name if r.plant else 'N/A' }}</td>
+                        <td class="time-cell">{{ r.capacity }}</td>
+                        <td>{{ r.description or '' }}</td>
                         <td class="actions-cell">
-                            <a href="{{ url_for('edit_room', id=room.id) }}" class="btn btn-edit">Editar</a>
-                            <form method="POST" action="{{ url_for('delete_room', id=room.id) }}" style="display:inline;" onsubmit="return confirm('¿Estás seguro de eliminar esta sala?');">
+                            <a href="{{ url_for('edit_room', id=r.id) }}" class="btn btn-edit">Editar</a>
+                            <form method="POST" action="{{ url_for('delete_room', id=r.id) }}" style="display:inline;" onsubmit="return confirm('¿Eliminar esta sala?');">
                                 <button type="submit" class="btn btn-delete">Eliminar</button>
                             </form>
                         </td>
                     </tr>
-                    {% endfor %}
-                {% else %}
-                    <tr>
-                        <td colspan="5" style="text-align: center; padding: 20px;">
-                            No hay salas registradas. <a href="{{ url_for('add_room') }}">Agregar la primera sala</a>
-                        </td>
-                    </tr>
-                {% endif %}
+                {% endfor %}
             </tbody>
         </table>
     </div>
+
+    <script>
+        function changePlant() {
+            const plant = document.getElementById('plant').value;
+            let url = '/rooms';
+            if (plant) url += '?plant=' + plant;
+            window.location.href = url;
+        }
+    </script>
 </body>
 </html>

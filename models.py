@@ -7,7 +7,6 @@ db = SQLAlchemy()
 
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
-    
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
@@ -33,17 +32,32 @@ class User(UserMixin, db.Model):
         return self.role == 'user'
 
 
+class Plant(db.Model):
+    __tablename__ = 'plants'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False, unique=True)  # ej. "Planta 1"
+    description = db.Column(db.String(300), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+
+    creator = db.relationship('User', backref='plants_created')
+    
+    def __repr__(self):
+        return f"<Plant {self.name}>"
+
+
 class Room(db.Model):
     __tablename__ = 'rooms'
-    
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False, unique=True)
     description = db.Column(db.String(300))
     capacity = db.Column(db.Integer, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    plant_id = db.Column(db.Integer, db.ForeignKey('plants.id'), nullable=True)  # <-- FK a Plant
     
     user = db.relationship('User', backref='rooms_created')
+    plant = db.relationship('Plant', backref='rooms')
     
     def to_dict(self):
         return {
@@ -51,13 +65,13 @@ class Room(db.Model):
             'name': self.name,
             'description': self.description,
             'capacity': self.capacity,
+            'plant': self.plant.name if self.plant else None,
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S')
         }
 
 
 class MeetingRoom(db.Model):
     __tablename__ = 'meeting_rooms'
-    
     id = db.Column(db.Integer, primary_key=True)
     room_id = db.Column(db.Integer, db.ForeignKey('rooms.id'), nullable=False)
     time_slot = db.Column(db.String(20), nullable=False)

@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_mail import Mail, Message
 from config import DevelopmentConfig
-from models import db, MeetingRoom, User, Room
+from models import db, MeetingRoom, User, Room, Plant
 from forms import MeetingRoomForm, LoginForm, ForgotPasswordForm, ResetPasswordForm, UserForm, RoomForm
 from datetime import datetime, timedelta
 from functools import wraps
@@ -50,15 +50,18 @@ def admin_required(f):
 # Función de envío de correo
 def send_email(subject, recipient, body):
     try:
-        mail.send(Message(subject, recipients=[recipient], body=body))
+        msg = Message(subject, recipients=[recipient], body=body)
+        mail.send(msg)
         return True
     except Exception as e:
-        print(f"Error al enviar correo: {e}")
+        app.logger.error(f"Error al enviar correo: {e}")
         return False
 
-# Inicialización
+# Inicialización y creación de tablas / datos por defecto
 with app.app_context():
     db.create_all()
+
+    # Crear superadmin si no existe
     existing = User.query.filter(
         or_(User.username == 'superadmin', User.email == 'juangaytangg332@gmail.com')
     ).first()
@@ -68,11 +71,27 @@ with app.app_context():
         db.session.add(admin)
         try:
             db.session.commit()
-            print("Super Admin creado: usuario='superadmin', contraseña='admin123'")
+            app.logger.info("Super Admin creado: usuario='superadmin', contraseña='admin123'")
+            existing = admin
         except IntegrityError:
             db.session.rollback()
+            existing = User.query.filter_by(username='superadmin').first()
 
-# ========== AUTENTICACIÓN ==========
+
+######################################################################################################################################
+    # Crear plantas 1 al 7 
+    for i in range(1, 8):
+        name = f"Planta {i}"
+        if not Plant.query.filter_by(name=name).first():
+            p = Plant(name=name, description=f"Planta {i}", created_by=(existing.id if existing else None))
+            db.session.add(p)
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+
+
+#############################################################################################################33333
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -133,7 +152,7 @@ Sistema WASION"""
 @app.route('/reset-password/<token>', methods=['GET', 'POST'])
 def reset_password(token):
     user = User.query.filter_by(reset_token=token).first()
-    if not user or user.reset_token_expiry < datetime.utcnow():
+    if not user or (user.reset_token_expiry and user.reset_token_expiry < datetime.utcnow()):
         flash('El enlace de restablecimiento es inválido o ha expirado', 'danger')
         return redirect(url_for('olvide_contrasena'))
     
@@ -165,7 +184,7 @@ def usuario_form():
             flash('El username o el email ya están en uso', 'danger')
             return render_template('usuario_form.html', form=form, action='Registrarse')
         
-        # Siempre crea como 'user'
+        # Siempre crea como 'user' al reigstrarse en login
         user = User(
             username=form.username.data, 
             email=form.email.data, 
@@ -184,7 +203,7 @@ def usuario_form():
     
     return render_template('usuario_form.html', form=form, action='Registrarse')
 
-# ========== GESTIÓN DE USUARIOS (Solo Superadmin) ==========
+# ############################# Gestion de usuarios por super admin 
 
 @app.route('/users')
 @superadmin_required
@@ -223,18 +242,25 @@ def delete_user(id):
     flash('Usuario eliminado exitosamente', 'success')
     return redirect(url_for('users'))
 
-# ========== GESTIÓN DE SALAS (Admin y Superadmin) ==========
+# ############################# Gestion de salas por admin y superadmin
 
 @app.route('/rooms')
 @admin_required
 def rooms():
-    all_rooms = Room.query.order_by(Room.name).all()
-    return render_template('salas.html', rooms=all_rooms)
+    plant_id = request.args.get('plant', type=int)
+    if plant_id:
+        all_rooms = Room.query.filter_by(plant_id=plant_id).order_by(Room.name).all()
+    else:
+        all_rooms = Room.query.order_by(Room.name).all()
+    plants = Plant.query.order_by(Plant.name).all()
+    return render_template('salas.html', rooms=all_rooms, plants=plants, selected_plant=plant_id)
 
 @app.route('/rooms/add', methods=['GET', 'POST'])
 @admin_required
 def add_room():
     form = RoomForm()
+    plants = Plant.query.order_by(Plant.name).all()
+    form.plant_id.choices = [(p.id, p.name) for p in plants]
     if form.validate_on_submit():
         if Room.query.filter_by(name=form.name.data).first():
             flash('Ya existe una sala con ese nombre', 'danger')
@@ -244,12 +270,13 @@ def add_room():
             name=form.name.data,
             description=form.description.data,
             capacity=form.capacity.data,
-            created_by=current_user.id
+            created_by=current_user.id,
+            plant_id=form.plant_id.data
         )
         db.session.add(room)
         db.session.commit()
         flash('Sala creada exitosamente', 'success')
-        return redirect(url_for('rooms'))
+        return redirect(url_for('rooms', plant=form.plant_id.data))
     return render_template('sala_form.html', form=form, action='Crear')
 
 @app.route('/rooms/edit/<int:id>', methods=['GET', 'POST'])
@@ -257,7 +284,8 @@ def add_room():
 def edit_room(id):
     room = Room.query.get_or_404(id)
     form = RoomForm(obj=room)
-    
+    plants = Plant.query.order_by(Plant.name).all()
+    form.plant_id.choices = [(p.id, p.name) for p in plants]
     if form.validate_on_submit():
         existing = Room.query.filter(Room.name == form.name.data, Room.id != id).first()
         if existing:
@@ -267,48 +295,84 @@ def edit_room(id):
         room.name = form.name.data
         room.description = form.description.data
         room.capacity = form.capacity.data
+        room.plant_id = form.plant_id.data
         db.session.commit()
         flash('Sala actualizada exitosamente', 'success')
-        return redirect(url_for('rooms'))
-    
+        return redirect(url_for('rooms', plant=room.plant_id))
     return render_template('sala_form.html', form=form, action='Editar', room=room)
 
 @app.route('/rooms/delete/<int:id>', methods=['POST'])
 @admin_required
 def delete_room(id):
     room = Room.query.get_or_404(id)
-    # Verificar si hay reuniones asociadas
+    # Verificar si hay reuniones ya ocupadas en esa sala
     if room.meetings:
         flash('No se puede eliminar la sala porque tiene reuniones asociadas', 'danger')
     else:
         db.session.delete(room)
         db.session.commit()
         flash('Sala eliminada exitosamente', 'success')
-    return redirect(url_for('rooms'))
+    return redirect(url_for('rooms', plant=room.plant_id if room else None))
 
-# ========== GESTIÓN DE REUNIONES (Todos los usuarios autenticados) ==========
+# ############################# Gestion de reuniones por todos los usuarios
 
 @app.route('/')
 @login_required
 def index():
+    ########### obtener planta en general
+    plant_id = request.args.get('plant', type=int)
     date_str = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
-    date = datetime.strptime(date_str, '%Y-%m-%d').date()
-    meetings = MeetingRoom.query.filter_by(date=date).order_by(MeetingRoom.time_slot).all()
-    return render_template('room.html', meetings=meetings, selected_date=date_str)
+    try:
+        date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except Exception:
+        date = datetime.now().date()
+        date_str = date.strftime('%Y-%m-%d')
+
+    ################ Si hay planta seleccionada, filtrar solo por salas de esa planta
+    if plant_id:
+        meetings = MeetingRoom.query.join(Room).filter(
+            MeetingRoom.date == date,
+            Room.plant_id == plant_id
+        ).order_by(MeetingRoom.time_slot).all()
+    else:
+        meetings = MeetingRoom.query.filter_by(date=date).order_by(MeetingRoom.time_slot).all()
+
+    ################# Traer todas las plantas para seleccionar alguna de ellas y agendar
+    try:
+        plants = Plant.query.order_by(Plant.name).all()
+    except Exception:
+        plants = []
+
+    return render_template('room.html', meetings=meetings, selected_date=date_str, plants=plants, selected_plant=plant_id)
 
 @app.route('/add', methods=['GET', 'POST'])
 @login_required
 def add_meeting():
     form = MeetingRoomForm()
-    # Cargar opciones de salas
-    form.room_id.choices = [(r.id, f"{r.name} (Cap: {r.capacity})") for r in Room.query.order_by(Room.name).all()]
-    
+    ######## cargar plantas
+    plants = Plant.query.order_by(Plant.name).all()
+    form.plant_id.choices = [(p.id, p.name) for p in plants]
+
+    ######### determinar planta seleccionada
+    selected_plant = None
+    if request.method == 'POST' and form.plant_id.data:
+        selected_plant = form.plant_id.data
+    else:
+        selected_plant = request.args.get('plant', type=int) or (plants[0].id if plants else None)
+
+    ########## cargar opciones de salas filtradas por planta
+    if selected_plant:
+        rooms = Room.query.filter_by(plant_id=selected_plant).order_by(Room.name).all()
+    else:
+        rooms = Room.query.order_by(Room.name).all()
+    form.room_id.choices = [(r.id, f"{r.name} (Cap: {r.capacity})") for r in rooms]
+
     if not form.room_id.choices:
-        flash('No hay salas disponibles. Un administrador debe crear salas primero.', 'warning')
-        return redirect(url_for('index'))
-    
+        flash('No hay salas disponibles para la planta seleccionada. Un administrador debe crear salas primero.', 'warning')
+        return redirect(url_for('index', plant=selected_plant))
+
     if form.validate_on_submit():
-        # Verificar conflicto de horario
+        ###### saber si esta disponile el horario para agendar sala
         if MeetingRoom.query.filter_by(
             date=form.date.data, 
             time_slot=form.time_slot.data,
@@ -336,7 +400,8 @@ def add_meeting():
 Tu reservación de sala de reuniones ha sido confirmada exitosamente.
 
 Detalles de la Reunión:
-- Sala: {room.name}
+- Sala: {room.name if room else 'N/A'}
+- Planta: {room.plant.name if room and room.plant else 'N/A'}
 - Fecha: {meeting.date.strftime('%d/%m/%Y')}
 - Horario: {meeting.time_slot}
 - Asunto: {meeting.subject}
@@ -349,19 +414,34 @@ Sistema de Salas WASION"""
         
         send_email('Confirmación de Reservación - WASION', meeting.leader_email, body)
         flash('Reunión agregada exitosamente. Se ha enviado un correo de confirmación.', 'success')
-        return redirect(url_for('index', date=form.date.data.strftime('%Y-%m-%d')))
+        return redirect(url_for('index', date=form.date.data.strftime('%Y-%m-%d'), plant=selected_plant))
     
     form.date.data = datetime.now().date()
+
+    if request.args.get('plant', type=int) and not form.plant_id.data:
+        form.plant_id.data = request.args.get('plant', type=int)
     return render_template('formulario.html', form=form, action='Agregar')
 
 @app.route('/edit/<int:id>', methods=['GET', 'POST'])
-@login_required
 @superadmin_required
 def edit_meeting(id):
     meeting = MeetingRoom.query.get_or_404(id)
     form = MeetingRoomForm(obj=meeting)
-    form.room_id.choices = [(r.id, f"{r.name} (Cap: {r.capacity})") for r in Room.query.order_by(Room.name).all()]
-    
+    plants = Plant.query.order_by(Plant.name).all()
+    form.plant_id.choices = [(p.id, p.name) for p in plants]
+
+    # establecer plant_id según la sala del meeting
+    if meeting.room and meeting.room.plant_id:
+        form.plant_id.data = meeting.room.plant_id
+
+    # cargar salas de la planta seleccionada
+    selected_plant = form.plant_id.data or (plants[0].id if plants else None)
+    if selected_plant:
+        rooms = Room.query.filter_by(plant_id=selected_plant).order_by(Room.name).all()
+    else:
+        rooms = Room.query.order_by(Room.name).all()
+    form.room_id.choices = [(r.id, f"{r.name} (Cap: {r.capacity})") for r in rooms]
+
     if form.validate_on_submit():
         if MeetingRoom.query.filter(
             MeetingRoom.date == form.date.data,
@@ -381,22 +461,61 @@ def edit_meeting(id):
         meeting.date = form.date.data
         db.session.commit()
         flash('Reunión actualizada exitosamente', 'success')
-        return redirect(url_for('index', date=meeting.date.strftime('%Y-%m-%d')))
+        return redirect(url_for('index', date=meeting.date.strftime('%Y-%m-%d'), plant=selected_plant))
     
     return render_template('formulario.html', form=form, action='Editar', meeting=meeting)
 
 @app.route('/delete/<int:id>', methods=['POST'])
-@login_required
 @superadmin_required
 def delete_meeting(id):
     meeting = MeetingRoom.query.get_or_404(id)
     date = meeting.date.strftime('%Y-%m-%d')
+    plant_id = None
+    if meeting.room:
+        plant_id = meeting.room.plant_id
     db.session.delete(meeting)
     db.session.commit()
     flash('Reunión eliminada exitosamente', 'success')
-    return redirect(url_for('index', date=date))
+    return redirect(url_for('index', date=date, plant=plant_id))
 
+# ############################# Gestion de plantas por superadmin
+
+@app.route('/plants')
+@superadmin_required
+def plants():
+    all_plants = Plant.query.order_by(Plant.name).all()
+    return render_template('plants.html', plants=all_plants)
+
+@app.route('/plants/add', methods=['GET', 'POST'])
+@superadmin_required
+def add_plant():
+    if request.method == 'POST':
+        name = request.form.get('name')
+        description = request.form.get('description')
+        if not name:
+            flash('El nombre de la planta es requerido', 'danger')
+            return redirect(url_for('plants'))
+        if Plant.query.filter_by(name=name).first():
+            flash('Ya existe una planta con ese nombre', 'danger')
+            return redirect(url_for('plants'))
+        p = Plant(name=name, description=description, created_by=current_user.id)
+        db.session.add(p)
+        db.session.commit()
+        flash('Planta creada', 'success')
+        return redirect(url_for('plants'))
+    return render_template('plant_form.html')
+
+@app.route('/plants/delete/<int:id>', methods=['POST'])
+@superadmin_required
+def delete_plant(id):
+    plant = Plant.query.get_or_404(id)
+    if plant.rooms:
+        flash('No se puede eliminar la planta porque tiene salas asociadas', 'danger')
+        return redirect(url_for('plants'))
+    db.session.delete(plant)
+    db.session.commit()
+    flash('Planta eliminada', 'success')
+    return redirect(url_for('plants'))
 
 if __name__ == '__main__':
     app.run(debug=True)
-    
