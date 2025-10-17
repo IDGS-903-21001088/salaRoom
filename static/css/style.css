@@ -130,13 +130,27 @@ header h1 {
 }
 
 .btn-primary:hover {
-    background-color: #000000;
+    background-color: #ffffff;
 }
 
 .btn-secondary {
     background-color: #2c3e50;
     color: rgb(255, 255, 255);
 }
+
+
+
+.btn-q:hover {
+    background-color: #cd0d0d;
+}
+
+.btn-q {
+    background-color: #8c0000;
+    color: rgb(253, 253, 253);
+}
+
+
+
 
 .btn-secondary:hover {
     background-color: #3c30b1;
@@ -259,4 +273,50 @@ header h1 {
     .actions-cell {
         flex-direction: column;
     }
+}
+
+.dropdown {
+  position: relative;
+}
+
+/* Style the dropdown button */
+.dropbtn {
+  background-color: #415282;
+  color: white;
+  padding: 16px;
+  font-size: 16px;
+  border: none;
+  cursor: pointer;
+}
+
+/* Dropdown content */
+.dropdown-content {
+  display: none;
+  position: absolute;
+  background-color: #f9f9f9;
+  min-width: 200px;
+  box-shadow: 0px 8px 16px 0px rgba(174, 173, 173, 0.2);
+}
+
+/* Links inside dropdown content */
+.dropdown-content a {
+  color: rgb(244, 244, 242);
+  padding: 12px 16px;
+  text-decoration: none;
+  display: block;
+}
+
+/* Change color of dropdown links on hover */
+.dropdown-content a:hover {
+  background-color: #178c9a
+}
+
+/* Show the dropdown content on hover */
+.dropdown:hover .dropdown-content {
+  display: block;
+}
+
+/* Change background color of dropdown button on hover */
+.dropdown:hover .dropbtn {
+  background-color: #819fb8;
 }

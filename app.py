@@ -4,7 +4,7 @@ from flask_mail import Mail, Message
 from config import DevelopmentConfig
 from models import db, MeetingRoom, User, Room, Plant
 from forms import MeetingRoomForm, LoginForm, ForgotPasswordForm, ResetPasswordForm, UserForm, RoomForm
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from functools import wraps
 import secrets
 from sqlalchemy.exc import IntegrityError
@@ -322,20 +322,25 @@ def index():
     ########### obtener planta en general
     plant_id = request.args.get('plant', type=int)
     date_str = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
+    mine = request.args.get('mine', default='0')  # '1' para ver solo propias
+
     try:
-        date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        selected_date = datetime.strptime(date_str, '%Y-%m-%d').date()
     except Exception:
-        date = datetime.now().date()
-        date_str = date.strftime('%Y-%m-%d')
+        selected_date = datetime.now().date()
+        date_str = selected_date.strftime('%Y-%m-%d')
 
     ################ Si hay planta seleccionada, filtrar solo por salas de esa planta
+    query = MeetingRoom.query.join(Room, isouter=True).filter(MeetingRoom.date == selected_date)
+
     if plant_id:
-        meetings = MeetingRoom.query.join(Room).filter(
-            MeetingRoom.date == date,
-            Room.plant_id == plant_id
-        ).order_by(MeetingRoom.time_slot).all()
-    else:
-        meetings = MeetingRoom.query.filter_by(date=date).order_by(MeetingRoom.time_slot).all()
+        query = query.filter(Room.plant_id == plant_id)
+
+    # Si el usuario marcó "mis reservaciones", filtrar por created_by del usuario actual
+    if mine == '1':
+        query = query.filter(MeetingRoom.created_by == current_user.id)
+
+    meetings = query.order_by(MeetingRoom.time_slot).all()
 
     ################# Traer todas las plantas para seleccionar alguna de ellas y agendar
     try:
@@ -343,7 +348,15 @@ def index():
     except Exception:
         plants = []
 
-    return render_template('room.html', meetings=meetings, selected_date=date_str, plants=plants, selected_plant=plant_id)
+    # Pasar el flag 'mine' a la plantilla para que el checkbox refleje el estado
+    return render_template('room.html',
+                           meetings=meetings,
+                           selected_date=date_str,
+                           plants=plants,
+                           selected_plant=plant_id,
+                           today=date.today().strftime('%Y-%m-%d'),
+                           mine=(mine == '1'))
+
 
 @app.route('/add', methods=['GET', 'POST'])
 @login_required
@@ -372,6 +385,14 @@ def add_meeting():
         return redirect(url_for('index', plant=selected_plant))
 
     if form.validate_on_submit():
+        # Validación adicional de fecha en el backend por seguridad
+        if form.date.data < date.today():
+            flash('No se pueden agendar reuniones en fechas pasadas', 'danger')
+            return render_template('formulario.html', 
+                                 form=form, 
+                                 action='Agregar',
+                                 today=date.today().strftime('%Y-%m-%d'))
+        
         ###### saber si esta disponile el horario para agendar sala
         if MeetingRoom.query.filter_by(
             date=form.date.data, 
@@ -379,7 +400,10 @@ def add_meeting():
             room_id=form.room_id.data
         ).first():
             flash('Ya existe una reunión reservada en ese horario y sala', 'danger')
-            return render_template('formulario.html', form=form, action='Agregar')
+            return render_template('formulario.html', 
+                                 form=form, 
+                                 action='Agregar',
+                                 today=date.today().strftime('%Y-%m-%d'))
         
         meeting = MeetingRoom(
             room_id=form.room_id.data,
@@ -416,11 +440,17 @@ Sistema de Salas WASION"""
         flash('Reunión agregada exitosamente. Se ha enviado un correo de confirmación.', 'success')
         return redirect(url_for('index', date=form.date.data.strftime('%Y-%m-%d'), plant=selected_plant))
     
-    form.date.data = datetime.now().date()
+    # Establecer fecha de hoy como valor por defecto si no hay datos
+    if not form.date.data:
+        form.date.data = date.today()
 
     if request.args.get('plant', type=int) and not form.plant_id.data:
         form.plant_id.data = request.args.get('plant', type=int)
-    return render_template('formulario.html', form=form, action='Agregar')
+    
+    return render_template('formulario.html', 
+                         form=form, 
+                         action='Agregar',
+                         today=date.today().strftime('%Y-%m-%d'))
 
 @app.route('/edit/<int:id>', methods=['GET', 'POST'])
 @superadmin_required
@@ -443,6 +473,15 @@ def edit_meeting(id):
     form.room_id.choices = [(r.id, f"{r.name} (Cap: {r.capacity})") for r in rooms]
 
     if form.validate_on_submit():
+        # Validación adicional de fecha en el backend por seguridad
+        if form.date.data < date.today():
+            flash('No se pueden agendar reuniones en fechas pasadas', 'danger')
+            return render_template('formulario.html', 
+                                 form=form, 
+                                 action='Editar', 
+                                 meeting=meeting,
+                                 today=date.today().strftime('%Y-%m-%d'))
+        
         if MeetingRoom.query.filter(
             MeetingRoom.date == form.date.data,
             MeetingRoom.time_slot == form.time_slot.data,
@@ -450,7 +489,11 @@ def edit_meeting(id):
             MeetingRoom.id != id
         ).first():
             flash('Ya existe una reunión reservada en ese horario y sala', 'danger')
-            return render_template('formulario.html', form=form, action='Editar', meeting=meeting)
+            return render_template('formulario.html', 
+                                 form=form, 
+                                 action='Editar', 
+                                 meeting=meeting,
+                                 today=date.today().strftime('%Y-%m-%d'))
         
         meeting.room_id = form.room_id.data
         meeting.time_slot = form.time_slot.data
@@ -463,20 +506,24 @@ def edit_meeting(id):
         flash('Reunión actualizada exitosamente', 'success')
         return redirect(url_for('index', date=meeting.date.strftime('%Y-%m-%d'), plant=selected_plant))
     
-    return render_template('formulario.html', form=form, action='Editar', meeting=meeting)
+    return render_template('formulario.html', 
+                         form=form, 
+                         action='Editar', 
+                         meeting=meeting,
+                         today=date.today().strftime('%Y-%m-%d'))
 
 @app.route('/delete/<int:id>', methods=['POST'])
 @superadmin_required
 def delete_meeting(id):
     meeting = MeetingRoom.query.get_or_404(id)
-    date = meeting.date.strftime('%Y-%m-%d')
+    date_str = meeting.date.strftime('%Y-%m-%d')
     plant_id = None
     if meeting.room:
         plant_id = meeting.room.plant_id
     db.session.delete(meeting)
     db.session.commit()
     flash('Reunión eliminada exitosamente', 'success')
-    return redirect(url_for('index', date=date, plant=plant_id))
+    return redirect(url_for('index', date=date_str, plant=plant_id))
 
 # ############################# Gestion de plantas por superadmin
 

@@ -56,7 +56,7 @@
                 {% endif %}
 
                 <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">{{ action }}</button>
+                    <button type="submit" class="btn btn-terciario">{{ action }}</button>
                     {% if current_user.is_authenticated %}
                         <a href="{{ url_for('users') }}" class="btn btn-secondary">Cancelar</a>
                     {% else %}

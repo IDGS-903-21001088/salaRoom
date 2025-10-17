@@ -9,7 +9,9 @@
 </head>
 <body>
     <div class="container">
-        <header><h1>{{ action }} Reunión</h1></header>
+        <header>
+            <h1>{{ action }} Reunión</h1>
+        </header>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -19,65 +21,143 @@
             {% endif %}
         {% endwith %}
 
-        <form method="POST">
+        <form method="POST" class="form-container">
             {{ form.hidden_tag() }}
-
+            
             <div class="form-group">
-                <label for="plant_id">Planta</label>
-                {{ form.plant_id(class="form-control", id="plant_id", onchange="onPlantChange()") }}
+                {{ form.date.label(class="form-label") }}
+                {{ form.date(class="form-control", min=today, required=true) }}
+                {% if form.date.errors %}
+                    <div class="error-message">
+                        {% for error in form.date.errors %}
+                            <span>{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                {% endif %}
             </div>
 
             <div class="form-group">
-                <label for="room_id">Sala</label>
-                {{ form.room_id(class="form-control", id="room_id") }}
+                {{ form.plant_id.label(class="form-label") }}
+                {{ form.plant_id(class="form-control", onchange="loadRoomsByPlant()", required=true) }}
+                {% if form.plant_id.errors %}
+                    <div class="error-message">
+                        {% for error in form.plant_id.errors %}
+                            <span>{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                {% endif %}
             </div>
 
             <div class="form-group">
-                <label for="date">Fecha</label>
-                {{ form.date(class="form-control") }}
+                {{ form.room_id.label(class="form-label") }}
+                {{ form.room_id(class="form-control", required=true) }}
+                {% if form.room_id.errors %}
+                    <div class="error-message">
+                        {% for error in form.room_id.errors %}
+                            <span>{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                {% endif %}
             </div>
 
             <div class="form-group">
-                <label for="time_slot">Horario</label>
-                {{ form.time_slot(class="form-control") }}
+                {{ form.time_slot.label(class="form-label") }}
+                {{ form.time_slot(class="form-control", required=true) }}
+                {% if form.time_slot.errors %}
+                    <div class="error-message">
+                        {% for error in form.time_slot.errors %}
+                            <span>{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                {% endif %}
             </div>
 
             <div class="form-group">
-                <label for="leader">Líder</label>
-                {{ form.leader(class="form-control") }}
+                {{ form.leader.label(class="form-label") }}
+                {{ form.leader(class="form-control", placeholder="Nombre del responsable", required=true) }}
+                {% if form.leader.errors %}
+                    <div class="error-message">
+                        {% for error in form.leader.errors %}
+                            <span>{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                {% endif %}
             </div>
 
             <div class="form-group">
-                <label for="leader_email">Email del líder</label>
-                {{ form.leader_email(class="form-control") }}
+                {{ form.leader_email.label(class="form-label") }}
+                {{ form.leader_email(class="form-control", type="email", placeholder="correo@ejemplo.com", required=true) }}
+                {% if form.leader_email.errors %}
+                    <div class="error-message">
+                        {% for error in form.leader_email.errors %}
+                            <span>{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                {% endif %}
             </div>
 
             <div class="form-group">
-                <label for="subject">Asunto</label>
-                {{ form.subject(class="form-control") }}
+                {{ form.subject.label(class="form-label") }}
+                {{ form.subject(class="form-control", placeholder="Asunto de la reunión", required=true) }}
+                {% if form.subject.errors %}
+                    <div class="error-message">
+                        {% for error in form.subject.errors %}
+                            <span>{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                {% endif %}
             </div>
 
             <div class="form-group">
-                <label for="remarks">Observaciones</label>
-                {{ form.remarks(class="form-control") }}
+                {{ form.remarks.label(class="form-label") }}
+                {{ form.remarks(class="form-control", rows="4", placeholder="Observaciones adicionales (opcional)") }}
+                {% if form.remarks.errors %}
+                    <div class="error-message">
+                        {% for error in form.remarks.errors %}
+                            <span>{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                {% endif %}
             </div>
 
-            <button type="submit" class="btn btn-primary">{{ action }}</button>
-            <a href="{{ url_for('index', date=form.date.data.strftime('%Y-%m-%d') if form.date.data else None, plant=form.plant_id.data if form.plant_id.data else None) }}" class="btn btn-secondary">Cancelar</a>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-secundary">{{ action }}</button>
+                <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancelar</a>
+            </div>
         </form>
     </div>
 
     <script>
-        function onPlantChange() {
-            // recarga la página para que el backend reasigne form.room_id.choices
-            const plant = document.getElementById('plant_id').value;
-            const dateInput = document.querySelector('input[name="date"]');
-            const date = dateInput ? dateInput.value : '';
-            const qs = new URLSearchParams();
-            if (plant) qs.set('plant', plant);
-            if (date) qs.set('date', date);
-            // cuando estamos editando, puede ser útil agregar id, pero para agregar basta con esto
-            window.location.href = '/add?' + qs.toString();
+        // Validación adicional en el cliente
+        document.addEventListener('DOMContentLoaded', function() {
+            const dateInput = document.querySelector('input[type="date"]');
+            const today = new Date().toISOString().split('T')[0];
+            
+            // Establecer fecha mínima
+            dateInput.min = today;
+            
+            // Validar antes de enviar el formulario
+            const form = document.querySelector('form');
+            form.addEventListener('submit', function(e) {
+                const selectedDate = dateInput.value;
+                if (selectedDate < today) {
+                    e.preventDefault();
+                    alert('No se pueden agendar reuniones en fechas pasadas. Por favor selecciona la fecha de hoy o una fecha futura.');
+                    dateInput.value = today;
+                    return false;
+                }
+            });
+        });
+
+        function loadRoomsByPlant() {
+            // Recargar la página con la planta seleccionada para actualizar las salas
+            const plantSelect = document.querySelector('select[name="plant_id"]');
+            const selectedPlant = plantSelect.value;
+            if (selectedPlant) {
+                const currentUrl = new URL(window.location.href);
+                currentUrl.searchParams.set('plant', selectedPlant);
+                window.location.href = currentUrl.toString();
+            }
         }
     </script>
 </body>

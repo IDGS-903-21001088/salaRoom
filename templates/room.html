@@ -7,7 +7,9 @@
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/wasion.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
+
 <body>
+    
     
     <div class="container">
         <header>
@@ -29,7 +31,7 @@
         <div class="controls" style="display:flex;gap:12px;align-items:center;margin-bottom:16px;">
             <div class="date-selector">
                 <label for="date">Fecha:</label>
-                <input type="date" id="date" value="{{ selected_date }}" onchange="changeDate()">
+                <input type="date" id="date" value="{{ selected_date }}" min="{{ today }}" onchange="changeDate()">
             </div>
 
             <div class="plant-selector">
@@ -43,8 +45,17 @@
                 </select>
             </div>
 
+
+        <div class="mine-filter" style="display:flex;align-items:center;gap:6px;">
+        <input type="checkbox" id="mine" name="mine" value="1" {% if mine %}checked{% endif %} onchange="changeMine()">
+        <label for="mine">Ver solo mis reservaciones</label>
+    </div>
+
+<div class="dropdown">
+  <button class="dropbtn">Agregar -- &#128196;</button>
+  <div class="dropdown-content">
             <div style="margin-left:auto;">
-                <a href="{{ url_for('add_meeting', plant=selected_plant) }}" class="btn btn-primary">Agregar Reunión</a>
+                <a href="{{ url_for('add_meeting', plant=selected_plant) }}" class="btn btn-secondary">Agregar Reunión</a>
                 {% if current_user.is_admin() or current_user.is_superadmin() %}
                     <a href="{{ url_for('rooms', plant=selected_plant) }}" class="btn btn-secondary">Gestionar Salas</a>
                 {% endif %}
@@ -52,9 +63,11 @@
                     <a href="{{ url_for('plants') }}" class="btn btn-terciario">Gestionar Plantas</a>
                     <a href="{{ url_for('users') }}" class="btn btn-terciario">Gestionar Usuarios</a>
                 {% endif %}
-                <a href="{{ url_for('logout') }}" class="btn btn-danger">Cerrar Sesión</a>
+                <a href="{{ url_for('logout') }}" class="btn btn-q">Cerrar Sesión</a>
             </div>
         </div>
+        </div>
+</div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -117,18 +130,68 @@
     </div>
 
     <script>
-        function changeDate() {
-            const date = document.getElementById('date').value;
-            const plant = document.getElementById('plant').value;
-            const qs = new URLSearchParams();
-            if (date) qs.set('date', date);
-            if (plant) qs.set('plant', plant);
-            window.location.href = '/?' + qs.toString();
+    function getQueryParams() {
+        return new URLSearchParams(window.location.search);
+    }
+
+    function changeDate() {
+        const dateInput = document.getElementById('date');
+        const selectedDate = dateInput.value;
+        const plant = document.getElementById('plant').value;
+        const mineChecked = document.getElementById('mine').checked ? '1' : null;
+
+        // Validar que no se seleccione una fecha pasada
+        const today = new Date().toISOString().split('T')[0];
+        if (selectedDate < today) {
+            alert('No se pueden consultar fechas pasadas. Seleccione la fecha de hoy o una fecha futura.');
+            dateInput.value = today;
+            return;
         }
 
-        function changePlant() {
-            changeDate(); // reusa la misma lógica para preservar la fecha
+        const qs = new URLSearchParams();
+        if (selectedDate) qs.set('date', selectedDate);
+        if (plant) qs.set('plant', plant);
+        if (mineChecked) qs.set('mine', mineChecked);
+
+        window.location.href = '/?' + qs.toString();
+    }
+
+    function changePlant() {
+        changeDate(); 
+    }
+
+    function changeMine() {
+        changeDate();
+    }
+
+    // Establecer fecha mínima al cargar la página y actualizar dependiendo de la panta 
+    document.addEventListener('DOMContentLoaded', function() {
+        const dateInput = document.getElementById('date');
+        const today = new Date().toISOString().split('T')[0];
+        dateInput.min = today;
+
+        // opcional: para Agregar Reunión conservar planta
+        const params = getQueryParams();
+        const plant = params.get('plant');
+        const mine = params.get('mine');
+
+        const addLink = document.getElementById('add-meeting-link');
+        if (addLink) {
+            const url = new URL(addLink.href, window.location.origin);
+            if (plant) url.searchParams.set('plant', plant);
+            if (mine) url.searchParams.set('mine', mine);
+            addLink.href = url.toString();
         }
-    </script>
+
+        const manageRoomsLink = document.getElementById('manage-rooms-link');
+        if (manageRoomsLink) {
+            const url2 = new URL(manageRoomsLink.href, window.location.origin);
+            if (plant) url2.searchParams.set('plant', plant);
+            if (mine) url2.searchParams.set('mine', mine);
+            manageRoomsLink.href = url2.toString();
+        }
+    });
+</script>
+
 </body>
 </html>

@@ -4,6 +4,7 @@ from wtforms import (
     PasswordField, IntegerField
 )
 from wtforms.validators import DataRequired, Length, Email, EqualTo, NumberRange, ValidationError
+from datetime import date
 
 try:
     from wtforms.fields import EmailField
@@ -81,15 +82,20 @@ class RoomForm(FlaskForm):
         'Capacidad (personas)',
         validators=[DataRequired(), NumberRange(min=1, max=1000, message='La capacidad debe ser entre 1 y 1000')]
     )
-    plant_id = SelectField('Planta', coerce=int, validators=[DataRequired()])  # choices asignadas en la vista
+    plant_id = SelectField('Planta', coerce=int, validators=[DataRequired()])
 
 
 class MeetingRoomForm(FlaskForm):
     date = DateField('Fecha', format='%Y-%m-%d', validators=[DataRequired()])
-    plant_id = SelectField('Planta', coerce=int, validators=[DataRequired()])   # para filtrar salas
+    plant_id = SelectField('Planta', coerce=int, validators=[DataRequired()])
     room_id = SelectField('Sala', coerce=int, validators=[DataRequired()])
     time_slot = SelectField('Horario', choices=TIME_SLOTS, validators=[DataRequired()])
     leader = StringField('Responsable/Líder', validators=[DataRequired(), Length(max=100)])
     leader_email = EmailField('Correo del Responsable', validators=[DataRequired(), Email(), Length(max=120)])
     subject = StringField('Asunto', validators=[DataRequired(), Length(max=200)])
     remarks = TextAreaField('Observaciones', validators=[Length(max=300)])
+    
+    def validate_date(self, field):
+        """Validar que la fecha no sea anterior al día de hoy"""
+        if field.data < date.today():
+            raise ValidationError('No se pueden agendar reuniones en fechas pasadas. Por favor selecciona la fecha de hoy o una fecha futura.')

@@ -42,7 +42,7 @@
                 {{ form.plant_id(class="form-control") }}
             </div>
 
-            <button type="submit" class="btn btn-primary">{{ action }}</button>
+            <button type="submit" class="btn btn-terciario">{{ action }}</button>
             <a href="{{ url_for('rooms', plant=form.plant_id.data if form.plant_id.data else None) }}" class="btn btn-secondary">Cancelar</a>
         </form>
     </div>
