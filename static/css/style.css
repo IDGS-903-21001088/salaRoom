@@ -320,3 +320,41 @@ header h1 {
 .dropdown:hover .dropbtn {
   background-color: #819fb8;
 }
+
+.meeting-block {
+    border: 1px solid #e0e0e0;
+    background: #fafafa;
+    padding: 8px;
+    margin-bottom: 6px;
+    border-radius: 6px;
+    font-size: 13px;
+}
+
+.meeting-block .mb-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.meeting-block-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.meeting-block .muted {
+    color: #666;
+    font-weight: 400;
+    font-size: 12px;
+}
+
+.btn.small {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.time-cell {
+    width: 120px;
+    font-weight: 700;
+}
+

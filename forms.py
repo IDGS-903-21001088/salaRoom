@@ -1,18 +1,20 @@
+# forms.py
 from flask_wtf import FlaskForm
 from wtforms import (
-    StringField, DateField, TextAreaField, SelectField,
+    StringField, DateField, SubmitField, TextAreaField, SelectField,
     PasswordField, IntegerField
 )
 from wtforms.validators import DataRequired, Length, Email, EqualTo, NumberRange, ValidationError
 from datetime import date
 
+# Compatibilidad con distintas versiones de WTForms
 try:
     from wtforms.fields import EmailField
 except Exception:
     try:
         from wtforms import EmailField
     except Exception:
-        EmailField = StringField  
+        EmailField = StringField
 
 # Horarios para agendar citas
 TIME_SLOTS = [
@@ -27,8 +29,16 @@ TIME_SLOTS = [
 
 
 class LoginForm(FlaskForm):
-    username = StringField('Usuario', validators=[DataRequired(), Length(min=3, max=80)])
-    password = PasswordField('Contraseña', validators=[DataRequired()])
+    """
+    Inicio de sesión por correo (email) en lugar de usuario.
+    """
+    email = EmailField('Correo Electrónico', validators=[
+        DataRequired(message='El correo es requerido'),
+        Email(message='Correo inválido'),
+        Length(max=120)
+    ])
+    password = PasswordField('Contraseña', validators=[DataRequired(message='La contraseña es requerida')])
+    submit = SubmitField('Iniciar Sesión')
 
 
 class ForgotPasswordForm(FlaskForm):
@@ -44,6 +54,7 @@ class ResetPasswordForm(FlaskForm):
         'Confirmar Contraseña',
         validators=[DataRequired(), EqualTo('password', message='Las contraseñas deben coincidir')]
     )
+    submit = SubmitField('Restablecer Contraseña')
 
 
 class UserForm(FlaskForm):
@@ -55,22 +66,23 @@ class UserForm(FlaskForm):
         choices=[('user', 'Usuario'), ('admin', 'Administrador'), ('superadmin', 'Super Administrador')],
         validators=[DataRequired()]
     )
+    submit = SubmitField('Guardar')
 
     def validate_username(self, username):
-        from models import User
+        from models import User, db
         if hasattr(self, 'user_id'):
-            user = User.query.filter(User.username == username.data, User.id != self.user_id).first()
+            user = db.session.query(User).filter(User.username == username.data, User.id != self.user_id).first()
         else:
-            user = User.query.filter_by(username=username.data).first()
+            user = db.session.query(User).filter_by(username=username.data).first()
         if user:
             raise ValidationError('Este nombre de usuario ya está en uso.')
 
     def validate_email(self, email):
-        from models import User
+        from models import User, db
         if hasattr(self, 'user_id'):
-            user = User.query.filter(User.email == email.data, User.id != self.user_id).first()
+            user = db.session.query(User).filter(User.email == email.data, User.id != self.user_id).first()
         else:
-            user = User.query.filter_by(email=email.data).first()
+            user = db.session.query(User).filter_by(email=email.data).first()
         if user:
             raise ValidationError('Este correo electrónico ya está registrado.')
 
@@ -83,6 +95,7 @@ class RoomForm(FlaskForm):
         validators=[DataRequired(), NumberRange(min=1, max=1000, message='La capacidad debe ser entre 1 y 1000')]
     )
     plant_id = SelectField('Planta', coerce=int, validators=[DataRequired()])
+    submit = SubmitField('Guardar')
 
 
 class MeetingRoomForm(FlaskForm):
@@ -94,6 +107,7 @@ class MeetingRoomForm(FlaskForm):
     leader_email = EmailField('Correo del Responsable', validators=[DataRequired(), Email(), Length(max=120)])
     subject = StringField('Asunto', validators=[DataRequired(), Length(max=200)])
     remarks = TextAreaField('Observaciones', validators=[Length(max=300)])
+    submit = SubmitField('Guardar')
     
     def validate_date(self, field):
         """Validar que la fecha no sea anterior al día de hoy"""

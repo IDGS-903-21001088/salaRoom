@@ -10,7 +10,6 @@
 
 <body>
     
-    
     <div class="container">
         <header>
             <h1>WASION — Reservas de Salas</h1>
@@ -28,7 +27,7 @@
             {% endif %}
         </div>
 
-        <div class="controls" style="display:flex;gap:12px;align-items:center;margin-bottom:16px;">
+        <div class="controls" style="display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
             <div class="date-selector">
                 <label for="date">Fecha:</label>
                 <input type="date" id="date" value="{{ selected_date }}" min="{{ today }}" onchange="changeDate()">
@@ -45,29 +44,38 @@
                 </select>
             </div>
 
+            <div class="sala-selector">
+                <label for="sala">Sala:</label>
+                <select id="sala" onchange="changeSala()">
+                    <option value="">Todas las salas</option>
+                    {% for sala in salas %}
+                        <option value="{{ sala.id }}" {% if selected_sala and sala.id == selected_sala %}selected{% endif %}>
+                            {{ sala.name }} {% if sala.plant %} - {{ sala.plant.name }}{% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
 
-        <div class="mine-filter" style="display:flex;align-items:center;gap:6px;">
-        <input type="checkbox" id="mine" name="mine" value="1" {% if mine %}checked{% endif %} onchange="changeMine()">
-        <label for="mine">Ver solo mis reservaciones</label>
-    </div>
+            <div class="mine-filter" style="display:flex;align-items:center;gap:6px;">
+                <input type="checkbox" id="mine" name="mine" value="1" {% if mine %}checked{% endif %} onchange="changeMine()">
+                <label for="mine">Ver solo mis reservaciones</label>
+            </div>
 
-<div class="dropdown">
-  <button class="dropbtn">Agregar -- &#128196;</button>
-  <div class="dropdown-content">
-            <div style="margin-left:auto;">
-                <a href="{{ url_for('add_meeting', plant=selected_plant) }}" class="btn btn-secondary">Agregar Reunión</a>
-                {% if current_user.is_admin() or current_user.is_superadmin() %}
-                    <a href="{{ url_for('rooms', plant=selected_plant) }}" class="btn btn-secondary">Gestionar Salas</a>
-                {% endif %}
-                {% if current_user.is_superadmin() %}
-                    <a href="{{ url_for('plants') }}" class="btn btn-terciario">Gestionar Plantas</a>
-                    <a href="{{ url_for('users') }}" class="btn btn-terciario">Gestionar Usuarios</a>
-                {% endif %}
-                <a href="{{ url_for('logout') }}" class="btn btn-q">Cerrar Sesión</a>
+            <div class="dropdown">
+                <button class="dropbtn">Agregar -- &#128196;</button>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('add_meeting', plant=selected_plant, sala=selected_sala) }}" class="btn btn-secondary">Agregar Reunión</a>
+                    {% if current_user.is_admin() or current_user.is_superadmin() %}
+                        <a href="{{ url_for('rooms', plant=selected_plant) }}" class="btn btn-secondary">Gestionar Salas</a>
+                    {% endif %}
+                    {% if current_user.is_superadmin() %}
+                        <a href="{{ url_for('plants') }}" class="btn btn-terciario">Gestionar Plantas</a>
+                        <a href="{{ url_for('users') }}" class="btn btn-terciario">Gestionar Usuarios</a>
+                    {% endif %}
+                    <a href="{{ url_for('logout') }}" class="btn btn-q">Cerrar Sesión</a>
+                </div>
             </div>
         </div>
-        </div>
-</div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -91,56 +99,151 @@
                     <th>Acciones</th>
                 </tr>
             </thead>
-            <tbody>
-                {% set time_slots = [
-                    '8:00-8:30', '8:30-9:00', '9:00-9:30', '9:30-10:00',
-                    '10:00-10:30', '10:30-11:00', '11:00-11:30', '11:30-12:00',
-                    '12:00-12:30', '12:30-13:00', '13:00-13:30', '13:30-14:00',
-                    '14:00-14:30', '14:30-15:00', '15:00-15:30', '15:30-16:00',
-                    '16:00-16:30', '16:30-17:00', '17:00-17:30', '17:30-18:00'
-                ] %}
-                
-                {% for slot in time_slots %}
-                    {% set meeting = meetings|selectattr('time_slot', 'equalto', slot)|first %}
-                    <tr>
-                        <td class="time-cell">{{ slot }}</td>
-                        {% if meeting %}
-                            <td>{{ meeting.room.name if meeting.room else 'N/A' }}{% if meeting.room and meeting.room.plant %} — {{ meeting.room.plant.name }}{% endif %}</td>
-                            <td>{{ meeting.leader }}</td>
-                            <td>{{ meeting.leader_email }}</td>
-                            <td>{{ meeting.subject }}</td>
-                            <td>{{ meeting.remarks or '' }}</td>
-                            <td class="actions-cell">
-                                {% if current_user.is_superadmin() %}
-                                    <a href="{{ url_for('edit_meeting', id=meeting.id) }}" class="btn btn-edit">Editar</a>
-                                    <form method="POST" action="{{ url_for('delete_meeting', id=meeting.id) }}" style="display:inline;" onsubmit="return confirm('¿Eliminar esta reunión?');">
-                                        <button type="submit" class="btn btn-delete">Eliminar</button>
-                                    </form>
-                                {% else %}
-                                    <span style="color:#999;">Sin permisos</span>
-                                {% endif %}
-                            </td>
-                        {% else %}
-                            <td colspan="6"></td>
-                        {% endif %}
-                    </tr>
-                {% endfor %}
-            </tbody>
+
+            
+       <tbody>
+    {% set time_slots = [
+        '8:00-8:30', '8:30-9:00', '9:00-9:30', '9:30-10:00',
+        '10:00-10:30', '10:30-11:00', '11:00-11:30', '11:30-12:00',
+        '12:00-12:30', '12:30-13:00', '13:00-13:30', '13:30-14:00',
+        '14:00-14:30', '14:30-15:00', '15:00-15:30', '15:30-16:00',
+        '16:00-16:30', '16:30-17:00', '17:00-17:30', '17:30-18:00'
+    ] %}
+
+    {% for slot in time_slots %}
+        {# obtener todas las reuniones de este horario #}
+        {% set meetings_slot = meetings|selectattr('time_slot','equalto',slot)|list %}
+        {# si hay filtro de sala, filtramos la lista #}
+        {% if selected_sala %}
+            {% set meetings_slot = meetings_slot|selectattr('room_id','equalto', selected_sala)|list %}
+        {% endif %}
+
+        <tr>
+            <td class="time-cell">{{ slot }}</td>
+
+            {# Sala: mostramos todos los nombres apilados o vacío si no hay #}
+            <td>
+                {% if meetings_slot %}
+                    {% for m in meetings_slot %}
+                        <div class="meeting-block">
+                            <div class="mb-title">{{ m.room.name if m.room else 'N/A' }}
+                                {% if m.room and m.room.plant %}<small class="muted"> — {{ m.room.plant.name }}</small>{% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    &nbsp;
+                {% endif %}
+            </td>
+
+            {# Líder #}
+            <td>
+                {% if meetings_slot %}
+                    {% for m in meetings_slot %}
+                        <div class="meeting-block">
+                            {{ m.leader }}
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    &nbsp;
+                {% endif %}
+            </td>
+
+            {# Email #}
+            <td>
+                {% if meetings_slot %}
+                    {% for m in meetings_slot %}
+                        <div class="meeting-block">
+                            {{ m.leader_email }}
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    &nbsp;
+                {% endif %}
+            </td>
+
+            {# Asunto #}
+            <td>
+                {% if meetings_slot %}
+                    {% for m in meetings_slot %}
+                        <div class="meeting-block">
+                            {{ m.subject }}
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    &nbsp;
+                {% endif %}
+            </td>
+
+            {# Observaciones #}
+            <td>
+                {% if meetings_slot %}
+                    {% for m in meetings_slot %}
+                        <div class="meeting-block">
+                            {{ m.remarks or '' }}
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    &nbsp;
+                {% endif %}
+            </td>
+
+            <td class="actions-cell">
+                {% if meetings_slot %}
+                    {% for m in meetings_slot %}
+                        <div class="meeting-block meeting-block-actions">
+                            {% if current_user.is_superadmin() or current_user.id == m.created_by %}
+                                <a href="{{ url_for('edit_meeting', id=m.id) }}" class="btn btn-edit small">Editar</a>
+                                <form method="POST" action="{{ url_for('delete_meeting', id=m.id) }}" style="display:inline;" onsubmit="return confirm('¿Eliminar esta reunión?');">
+                                    <button type="submit" class="btn btn-delete small">Eliminar</button>
+                                </form>
+                            {% else %}
+                                <span class="muted">Sin permisos</span>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    &nbsp;
+                {% endif %}
+            </td>
+        </tr>
+    {% endfor %}
+</tbody>
+
         </table>
     </div>
 
     <script>
+
+        
     function getQueryParams() {
         return new URLSearchParams(window.location.search);
     }
 
     function changeDate() {
+        updateFilters();
+    }
+
+    function changePlant() {
+        document.getElementById('sala').value = '';
+        updateFilters();
+    }
+
+    function changeSala() {
+        updateFilters();
+    }
+
+    function changeMine() {
+        updateFilters();
+    }
+
+    function updateFilters() {
         const dateInput = document.getElementById('date');
         const selectedDate = dateInput.value;
         const plant = document.getElementById('plant').value;
-        const mineChecked = document.getElementById('mine').checked ? '1' : null;
+        const sala = document.getElementById('sala').value;
+        const mineChecked = document.getElementById('mine').checked ? '1' : '';
 
-        // Validar que no se seleccione una fecha pasada
         const today = new Date().toISOString().split('T')[0];
         if (selectedDate < today) {
             alert('No se pueden consultar fechas pasadas. Seleccione la fecha de hoy o una fecha futura.');
@@ -151,47 +254,38 @@
         const qs = new URLSearchParams();
         if (selectedDate) qs.set('date', selectedDate);
         if (plant) qs.set('plant', plant);
+        if (sala) qs.set('sala', sala);
         if (mineChecked) qs.set('mine', mineChecked);
 
         window.location.href = '/?' + qs.toString();
     }
 
-    function changePlant() {
-        changeDate(); 
-    }
 
-    function changeMine() {
-        changeDate();
-    }
-
-    // Establecer fecha mínima al cargar la página y actualizar dependiendo de la panta 
     document.addEventListener('DOMContentLoaded', function() {
         const dateInput = document.getElementById('date');
         const today = new Date().toISOString().split('T')[0];
         dateInput.min = today;
 
-        // opcional: para Agregar Reunión conservar planta
+        const plantSelect = document.getElementById('plant');
+        const salaSelect = document.getElementById('sala');
+        
+        plantSelect.addEventListener('change', function() {
+        });
+
         const params = getQueryParams();
         const plant = params.get('plant');
+        const sala = params.get('sala');
         const mine = params.get('mine');
 
-        const addLink = document.getElementById('add-meeting-link');
-        if (addLink) {
-            const url = new URL(addLink.href, window.location.origin);
+        const addMeetingLinks = document.querySelectorAll('a[href*="add_meeting"]');
+        addMeetingLinks.forEach(link => {
+            const url = new URL(link.href, window.location.origin);
             if (plant) url.searchParams.set('plant', plant);
+            if (sala) url.searchParams.set('sala', sala);
             if (mine) url.searchParams.set('mine', mine);
-            addLink.href = url.toString();
-        }
-
-        const manageRoomsLink = document.getElementById('manage-rooms-link');
-        if (manageRoomsLink) {
-            const url2 = new URL(manageRoomsLink.href, window.location.origin);
-            if (plant) url2.searchParams.set('plant', plant);
-            if (mine) url2.searchParams.set('mine', mine);
-            manageRoomsLink.href = url2.toString();
-        }
+            link.href = url.toString();
+        });
     });
-</script>
-
+    </script>
 </body>
 </html>

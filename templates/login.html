@@ -131,10 +131,10 @@
                 {{ form.hidden_tag() }}
                 
                 <div class="form-group">
-                    {{ form.username.label }}
-                    {{ form.username(placeholder="Ingresa tu usuario") }}
-                    {% if form.username.errors %}
-                        <span style="color: red; font-size: 12px;">{{ form.username.errors[0] }}</span>
+                    {{ form.email.label }}
+                    {{ form.email(placeholder="Ingresa tu correo") }}
+                    {% if form.email.errors %}
+                        <span style="color: red; font-size: 12px;">{{ form.email.errors[0] }}</span>
                     {% endif %}
                 </div>
 
@@ -158,4 +158,35 @@
         </div>
     </div>
 </body>
+<script>
+    // Prevenir caché del navegador
+    window.onload = function() {
+        // Desactivar caché
+        if (performance.navigation.type == 2) {
+            window.location.href = "{{ url_for('login') }}";
+        }
+    };
+
+    // Redirigir al login cuando intente ir atrás
+    (function (global) {
+        if (typeof (global.history.pushState) === 'function') {
+            global.history.pushState(null, null, global.location.href);
+            global.onpopstate = function () {
+                global.history.pushState(null, null, global.location.href);
+                window.location.href = "{{ url_for('login') }}";
+            };
+        }
+    })(window);
+
+    // Deshabilitar caché de página
+    window.onpageshow = function(event) {
+        if (event.persisted) {
+            window.location.href = "{{ url_for('login') }}";
+        }
+    };
+
+    function getQueryParams() {
+        return new URLSearchParams(window.location.search);
+    }
+</script>
 </html>
