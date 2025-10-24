@@ -15,9 +15,9 @@
         </header>
 
         <div class="controls">
-            <a href="{{ url_for('index') }}" class="btn btn-secondary">←  Volver a Salas</a>
+            <a href="{{ url_for('index') }}" class="btn btn-w">←  Volver a Salas</a>
             <a href="{{ url_for('add_user') }}" class="btn btn-terciario">Agregar Usuario</a>
-            <a href="{{ url_for('logout') }}" class="btn btn-danger">Cerrar Sesión</a>
+            <a href="{{ url_for('logout') }}" class="btn btn-q">Cerrar Sesión</a>
         </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}

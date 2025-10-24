@@ -151,6 +151,16 @@ header h1 {
 
 
 
+.btn-w:hover {
+    background-color: #ffc43c;
+}
+
+.btn-w {
+    background-color: #f3ab06;
+    color: rgb(253, 253, 253);
+}
+
+
 
 .btn-secondary:hover {
     background-color: #3c30b1;
@@ -356,5 +366,12 @@ header h1 {
 .time-cell {
     width: 120px;
     font-weight: 700;
+}
+
+.action-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-end;
 }
 

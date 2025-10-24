@@ -61,21 +61,23 @@
                 <label for="mine">Ver solo mis reservaciones</label>
             </div>
 
-            <div class="dropdown">
-                <button class="dropbtn">Agregar -- &#128196;</button>
-                <div class="dropdown-content">
-                    <a href="{{ url_for('add_meeting', plant=selected_plant, sala=selected_sala) }}" class="btn btn-secondary">Agregar Reunión</a>
-                    {% if current_user.is_admin() or current_user.is_superadmin() %}
-                        <a href="{{ url_for('rooms', plant=selected_plant) }}" class="btn btn-secondary">Gestionar Salas</a>
-                    {% endif %}
-                    {% if current_user.is_superadmin() %}
-                        <a href="{{ url_for('plants') }}" class="btn btn-terciario">Gestionar Plantas</a>
-                        <a href="{{ url_for('users') }}" class="btn btn-terciario">Gestionar Usuarios</a>
-                    {% endif %}
-                    <a href="{{ url_for('logout') }}" class="btn btn-q">Cerrar Sesión</a>
-                </div>
-            </div>
+           <div class="action-buttons">
+    <a href="{{ url_for('logout') }}" class="btn btn-q">Cerrar Sesión &#128274;</a>
+    <div class="dropdown">
+        <button class="dropbtn">Agregar -- &#128196;</button>
+        <div class="dropdown-content">
+            <a href="{{ url_for('add_meeting', plant=selected_plant, sala=selected_sala) }}" class="btn btn-secondary">Agregar Reunión</a>
+            {% if current_user.is_admin() or current_user.is_superadmin() %}
+                <a href="{{ url_for('rooms', plant=selected_plant) }}" class="btn btn-secondary">Gestionar Salas</a>
+            {% endif %}
+            {% if current_user.is_superadmin() %}
+                <a href="{{ url_for('plants') }}" class="btn btn-terciario">Gestionar Plantas</a>
+                <a href="{{ url_for('users') }}" class="btn btn-terciario">Gestionar Usuarios</a>
+            {% endif %}
         </div>
+</div>
+    </div>
+</div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -85,7 +87,6 @@
             {% endif %}
         {% endwith %}
 
-        <p class="subtitle">Seleccione el horario para ver la reserva</p>
 
         <table class="meeting-table">
             <thead>

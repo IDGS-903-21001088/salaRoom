@@ -17,7 +17,6 @@
 
         <div class="controls">
             <div class="date-selector">
-                <a href="{{ url_for('index') }}" class="btn btn-secondary">←Volver</a>
                 <label for="plant">Filtrar por Planta:</label>
                 <select id="plant" onchange="changePlant()" class="form-control">
                     <option value="">Todas</option>
@@ -29,6 +28,7 @@
 
             <div style="margin-left:auto;">
                 <a href="{{ url_for('add_room') }}" class="btn btn-terciario">Agregar Sala</a>
+                <a href="{{ url_for('index') }}" class="btn btn-w">←Volver</a>
             </div>
         </div>
 

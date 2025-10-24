@@ -21,10 +21,11 @@
             {% endif %}
         {% endwith %}
 
-        <div class="form-actions">
-            <a href="{{ url_for('index') }}" class="btn btn-secondary">← Volver</a>
+        <div class="form-actions" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
             <a href="{{ url_for('add_plant') }}" class="btn btn-terciario">Agregar Planta</a>
+            <a href="{{ url_for('index') }}" class="btn btn-w">← Volver</a>
         </div>
+
 
         <table class="meeting-table">
             <thead>

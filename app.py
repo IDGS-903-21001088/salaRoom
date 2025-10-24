@@ -762,12 +762,17 @@ Sistema de Salas WASION"""
                          today=date.today().strftime('%Y-%m-%d'))
 
 @app.route('/edit/<int:id>', methods=['GET', 'POST'])
-@superadmin_required
+@login_required
 def edit_meeting(id):
     # Usar db.session.get()
     meeting = db.session.get(MeetingRoom, id)
     if not meeting:
         flash('Reunión no encontrada', 'danger')
+        return redirect(url_for('index'))
+    
+    # Verificar permisos: superadmin o creador de la reunión
+    if not (current_user.is_superadmin() or current_user.id == meeting.created_by):
+        flash('No tienes permisos para editar esta reunión', 'danger')
         return redirect(url_for('index'))
     
     form = MeetingRoomForm(obj=meeting)
@@ -847,8 +852,10 @@ Sistema de Salas WASION"""
         
         email_sent_leader = send_email('Reservación Actualizada - WASION', meeting.leader_email, body_leader)
         
-        # ENVIO DE CORREO AL SUPERADMIN QUE EDITÓ O EJECUTO UNA ACCION DE CORRECCION DENTRO DEL SISTEMA
-        body_admin = f"""Confirmación de Acción - WASION
+        # ENVIO DE CORREO AL USUARIO QUE EDITÓ (si no es el líder)
+        email_sent_user = True
+        if current_user.email != meeting.leader_email:
+            body_user = f"""Confirmación de Acción - WASION
 
 Hola {current_user.username},
 
@@ -873,12 +880,12 @@ Fecha de actualización: {datetime.now().strftime('%d/%m/%Y %H:%M')}
 
 Saludos,
 Sistema WASION"""
+            
+            email_sent_user = send_email('Reunión Actualizada - WASION', current_user.email, body_user)
         
-        email_sent_admin = send_email('Reunión Actualizada - WASION', current_user.email, body_admin)
-        
-        if email_sent_leader and email_sent_admin:
+        if email_sent_leader and email_sent_user:
             flash('Reunión actualizada exitosamente. Se han enviado correos de confirmación.', 'success')
-        elif email_sent_leader or email_sent_admin:
+        elif email_sent_leader or email_sent_user:
             flash('Reunión actualizada exitosamente, pero hubo un error al enviar algunos correos.', 'warning')
         else:
             flash('Reunión actualizada exitosamente, pero hubo un error al enviar los correos.', 'warning')
@@ -891,12 +898,17 @@ Sistema WASION"""
                          today=date.today().strftime('%Y-%m-%d'))
 
 @app.route('/delete/<int:id>', methods=['POST'])
-@superadmin_required
+@login_required
 def delete_meeting(id):
     # Usar db.session.get()
     meeting = db.session.get(MeetingRoom, id)
     if not meeting:
         flash('Reunión no encontrada', 'danger')
+        return redirect(url_for('index'))
+    
+    # Verificar permisos: superadmin o creador de la reunión
+    if not (current_user.is_superadmin() or current_user.id == meeting.created_by):
+        flash('No tienes permisos para eliminar esta reunión', 'danger')
         return redirect(url_for('index'))
     
     date_str = meeting.date.strftime('%Y-%m-%d')
@@ -941,8 +953,10 @@ Sistema de Salas WASION"""
     
     email_sent_leader = send_email('Reservación Cancelada - WASION', meeting_info['leader_email'], body_leader)
 
-    # ENVIO DE CORREO AL SUPERADMIN QUE ELIMINÓ
-    body_admin = f"""Confirmación de Acción - WASION
+    # ENVIO DE CORREO AL USUARIO QUE ELIMINÓ (si no es el líder)
+    email_sent_user = True
+    if current_user.email != meeting_info['leader_email']:
+        body_user = f"""Confirmación de Acción - WASION
 
 Hola {current_user.username},
 
@@ -962,12 +976,12 @@ Fecha de eliminación: {datetime.now().strftime('%d/%m/%Y %H:%M')}
 
 Saludos,
 Sistema WASION"""
+        
+        email_sent_user = send_email('Reunión Eliminada - WASION', current_user.email, body_user)
     
-    email_sent_admin = send_email('Reunión Eliminada - WASION', current_user.email, body_admin)
-    
-    if email_sent_leader and email_sent_admin:
+    if email_sent_leader and email_sent_user:
         flash('Reunión eliminada exitosamente. Se han enviado correos de confirmación.', 'success')
-    elif email_sent_leader or email_sent_admin:
+    elif email_sent_leader or email_sent_user:
         flash('Reunión eliminada exitosamente, pero hubo un error al enviar algunos correos.', 'warning')
     else:
         flash('Reunión eliminada exitosamente, pero hubo un error al enviar los correos.', 'warning')
@@ -1061,4 +1075,3 @@ Sistema WASION"""
 
 if __name__ == '__main__':
     app.run(debug=True)
-    

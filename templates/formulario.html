@@ -120,10 +120,11 @@
                 {% endif %}
             </div>
 
-            <div class="form-actions">
-                <button type="submit" class="btn btn-secundary">{{ action }}</button>
-                <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancelar</a>
-            </div>
+           <div class="form-actions" style="display: flex; justify-content: center; gap: 10px; margin-top: 20px;">
+    <a href="{{ url_for('index') }}" class="btn btn-q">Cancelar</a>
+    <button type="submit" class="btn btn-terciario">{{ action }}</button>
+</div>
+
         </form>
     </div>
 
