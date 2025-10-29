@@ -79,6 +79,16 @@ class UserForm(FlaskForm):
 
     def validate_email(self, email):
         from models import User, db
+        
+       
+
+       
+        email_lower = email.data.lower()
+        if not (email_lower.endswith('@wasion.com') or email_lower.endswith('@wasion.cn')):
+            raise ValidationError('Solo se permiten correos @wasion.com o @wasion.cn')
+        
+
+        
         if hasattr(self, 'user_id'):
             user = db.session.query(User).filter(User.email == email.data, User.id != self.user_id).first()
         else:
@@ -113,3 +123,4 @@ class MeetingRoomForm(FlaskForm):
         """Validar que la fecha no sea anterior al día de hoy"""
         if field.data < date.today():
             raise ValidationError('No se pueden agendar reuniones en fechas pasadas. Por favor selecciona la fecha de hoy o una fecha futura.')
+        

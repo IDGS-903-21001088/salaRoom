@@ -330,6 +330,12 @@ def users():
 def add_user():
     form = UserForm()
     if form.validate_on_submit():
+        # Validar dominio de correo
+        email = form.email.data.lower()
+        if not (email.endswith('@wasion.com') or email.endswith('@wasion.cn')):
+            flash('Solo se permiten correos @wasion.com o @wasion.cn', 'danger')
+            return render_template('usuario_form.html', form=form, action='Crear')
+        
         # Usar db.session.query()
         if db.session.query(User).filter(or_(User.username == form.username.data, User.email == form.email.data)).first():
             flash('El username o el email ya están en uso', 'danger')
@@ -389,6 +395,7 @@ Sistema WASION"""
             db.session.rollback()
             flash('Error al crear usuario', 'danger')
     return render_template('usuario_form.html', form=form, action='Crear')
+
 
 @app.route('/users/delete/<int:id>', methods=['POST'])
 @superadmin_required
